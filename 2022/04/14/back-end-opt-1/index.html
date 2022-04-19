@@ -24,10 +24,10 @@
 <meta property="og:description" content="编译后端优化：If-Conversion算法与LLVM实现 在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-04-14T14:31:09.000Z">
-<meta property="article:modified_time" content="2022-04-16T07:08:22.227Z">
+<meta property="article:modified_time" content="2022-04-19T15:36:14.422Z">
 <meta property="article:author" content="Yuge Chen">
-<meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="LLVM">
+<meta property="article:tag" content="编译原理">
 <meta name="twitter:card" content="summary_large_image">
   
   
@@ -199,7 +199,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          3.4k 字
+          3k 字
         
       </span>
     
@@ -291,71 +291,58 @@ alt="控制流图和其对应的控制依赖关系" />
 <figcaption
 aria-hidden="true">控制流图和其对应的控制依赖关系</figcaption>
 </figure>
-<p>对基本块分支的不同选项进行编号，那么每个基本块对应的控制依赖可以用更具体的编号表示，例如基本块3的执行条件对应编号即为{-1}。其中没有编号即为一定执行的基本块。</p>
+<p>对基本块分支的不同选项进行编号，那么每个基本块对应的控制依赖可以用更具体的编号表示，例如基本块3的执行条件对应编号即为{-1}。</p>
 <h3 id="计算控制依赖">计算控制依赖</h3>
 <p>首先需要计算后置支配关系。在LLVM中，可以利用PostDominatorTree直接获得后置支配树PostDT，并通过PostDT-&gt;dominates(I,J)对基本块之间的后置支配关系进行判断。</p>
 <p>其次，需要计算每个节点的直接后置支配节点。这个我在LLVM中没有找到对应的函数，因此直接使用了下面的算法。后继支配节点=直接后继支配节点+直接后继支配节点的后继支配节点，因此只需要删除所有“后继支配其他节点”的节点，剩下的即为直接后继支配节点。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-keyword">for</span> CFG中的每一个节点n &#123;<br>    pdom(n) -= n;   <span class="hljs-comment">// 删除节点自己</span><br>&#125;<br><span class="hljs-keyword">for</span> CFG中的每一个节点n &#123;<br>    <span class="hljs-keyword">for</span> <span class="hljs-title function_">pdom</span><span class="hljs-params">(n)</span>中的每一个节点s &#123;<br>        <span class="hljs-keyword">for</span> <span class="hljs-title function_">pdom</span><span class="hljs-params">(n)</span>中的除去s的每一个节点t &#123;<br>            <span class="hljs-keyword">if</span> (t pdom s)   <span class="hljs-comment">// 删除“后继支配其他节点”的节点</span><br>                pdom(n) -= t;<br>        &#125;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
 <p>下面的表格展示了每个节点的后继支配和直接后继支配的结果。</p>
-<table>
+<table style="width:100%;">
+
 <thead>
 <tr class="header">
 <th style="text-align: center;"></th>
-<th style="text-align: center;">pdom</th>
-<th style="text-align: center;">ipdom</th>
+<th style="text-align: center;">S</th>
+<th style="text-align: center;">1</th>
+<th style="text-align: center;">2</th>
+<th style="text-align: center;">3</th>
+<th style="text-align: center;">4</th>
+<th style="text-align: center;">5</th>
+<th style="text-align: center;">6</th>
+<th style="text-align: center;">7</th>
+<th style="text-align: center;">E</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: center;">S</td>
+<td style="text-align: center;">pdom</td>
 <td style="text-align: center;">{E,7,1,S}</td>
-<td style="text-align: center;">1</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">1</td>
 <td style="text-align: center;">{E,7,1}</td>
-<td style="text-align: center;">7</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">2</td>
 <td style="text-align: center;">{E,7,6,2}</td>
-<td style="text-align: center;">6</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">3</td>
 <td style="text-align: center;">{E,7,3}</td>
-<td style="text-align: center;">7</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">4</td>
 <td style="text-align: center;">{E,7,6,4}</td>
-<td style="text-align: center;">6</td>
-</tr>
-<tr class="even">
-<td style="text-align: center;">5</td>
 <td style="text-align: center;">{E,7,6,5}</td>
-<td style="text-align: center;">6</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">6</td>
 <td style="text-align: center;">{E,7,6}</td>
-<td style="text-align: center;">7</td>
+<td style="text-align: center;">{E,7}</td>
+<td style="text-align: center;">{E}</td>
 </tr>
 <tr class="even">
+<td style="text-align: center;">ipdom</td>
+<td style="text-align: center;">1</td>
 <td style="text-align: center;">7</td>
-<td style="text-align: center;">{E,7}</td>
+<td style="text-align: center;">6</td>
 <td style="text-align: center;">7</td>
-</tr>
-<tr class="odd">
-<td style="text-align: center;">E</td>
-<td style="text-align: center;">{E}</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">7</td>
 <td style="text-align: center;">{}</td>
 </tr>
 </tbody>
 </table>
 <p>得到每个节点的直接后继支配后，即可以计算控制依赖关系，可以直接通过控制依赖的两个条件得到，算法如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-keyword">for</span> CFG中的边[x,y,label] &#123;  <span class="hljs-comment">// label为true表示X为true时跳转的边</span><br>    <span class="hljs-keyword">if</span> (y pdom x)<br>        <span class="hljs-keyword">continue</span>;   <span class="hljs-comment">// X不能被Y后继支配</span><br>    t = y;<br>    <span class="hljs-keyword">while</span>(t != ipdom(x)) &#123;<br>        CD(t) += x;<br>        t = ipdom(t);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
-<p>以上图例子中的控制流图为例，当分析边[1,2,true]时，t将依次遍历2，6，7。除了节点7之外的其他节点均满足“从1到这个节点路径上的所有节点都被该节点后继支配”。因此节点1将会被添加至CD(2)和CD(6)之中。其他边的计算方法同理，最终得到所有节点的控制依赖如下表所示：</p>
+<p>以上图例子中的控制流图为例，当分析边[1,2,true]时，t将依次遍历2，6，7。除了节点7之外的其他节点均满足“从1到这个节点路径上的所有节点都被该节点后继支配”。因此节点1将会被添加至CD(2)和CD(6)之中。其他边的计算方法同理，最终得到所有节点的控制依赖如下表所示，没有编号的即为一定会被执行的基本块：</p>
 <table>
 <thead>
 <tr class="header">
@@ -459,9 +446,7 @@ IR进行更改，使指令全部被复制至一个基本块中。这里需要考
 <li>目标是否支持谓词的执行方式，如果不支持则要做一些面向目标的修改；</li>
 <li>LLVM IR为SSA形式，要注意生成新的基本块时不要打破SSA约束。</li>
 </ol>
-<p>针对第一个问题，我们的优化目标不支持谓词执行，因此需要用现有的LLVM指令实现谓词的功能。考虑到能对外界数据产生影响的指令仅为Store指令，因此，在每个Store指令之前，我们先使用Load读取目标地址的原址，并用Select指令根据谓词条件判断写回新值还是原值。最终执行Store语句将选择的值写入目标地址。如果谓词条件不满足，那么写回的仍然是原值，相当于计算结果并未对外界造成影响。</p>
-<p>此外，某些原本不执行的基本块中的语句在执行之后，可能会对Store写回的结果产生影响。针对该问题进行分析，LLVM生成的SSA是严格SSA，即每个use被其def支配。因此，每一个use和其对应的def都是成对执行或者成对不执行的。在合并基本块时，普通的def直接复制。如果def是Φ函数，那么则将其替换为Select指令，再复制到新的基本块中。</p>
-<p>针对第二个问题，在我们使用IRBuilder或者其他方法创建新的Instruction时，需要使用RemapInstruction函数，将新的Inst和旧控制流图中的Inst绑定起来，这样子就可以保证最后生成的基本块满足SSA特性。绑定后即可通过ReplaceInstWithInst或者其他方法添加、替换、删除指令了。</p>
+<p>在这里，第一个问题涉及一些项目细节，就不展开介绍了。针对第二个问题，在我们使用IRBuilder或者其他方法创建新的Instruction时，需要使用RemapInstruction函数，将新的Inst和旧控制流图中的Inst绑定起来，这样子就可以保证最后生成的基本块满足SSA特性。绑定后即可通过ReplaceInstWithInst或者其他方法添加、替换、删除指令了。</p>
 
               
             </div>
@@ -494,9 +479,9 @@ IR进行更改，使指令全部被复制至一个基本块中。这里需要考
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
-      
         <a href="/tags/LLVM/">#LLVM</a>
+      
+        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
       
     </div>
   
@@ -510,12 +495,18 @@ IR进行更改，使指令全部被复制至一个基本块中。这里需要考
                   <article class="post-prev col-6">
                     
                     
+                      <a href="/2022/04/16/ssa-book-4/" title="《SSA Book》- 4. SSA的基本析构算法">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">《SSA Book》- 4. SSA的基本析构算法</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2022/04/10/ssa-book-3/" title="《SSA Book》- 3.1. SSA的标准构造算法">
-                        <span class="hidden-mobile">《SSA Book》- 3.1. SSA的标准构造算法</span>
+                      <a href="/2022/04/10/ssa-book-3/" title="《SSA Book》- 3. SSA的基本构造算法">
+                        <span class="hidden-mobile">《SSA Book》- 3. SSA的基本构造算法</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

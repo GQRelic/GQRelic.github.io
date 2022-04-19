@@ -16,22 +16,22 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 2. SSA种类和特性 本章首先介绍了SSA和non-SSA下的def-use链特性进行了分析。同时本章介绍了几种不同形式的SSA，包括最小SSA（Minimal SSA）、严格SSA（Strict SSA）、剪枝SSA（Pruned SSA）和常规和转换SSA（Conventional and transformed SSA） Def-use与use-def链">
+    <meta name="description" content="《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简">
 <meta property="og:type" content="article">
-<meta property="og:title" content="《SSA Book》- 2. SSA种类和特性">
-<meta property="og:url" content="http://www.gqrelic.com/2022/04/09/ssa-book-2/index.html">
+<meta property="og:title" content="《SSA Book》- 4. SSA的基本析构算法">
+<meta property="og:url" content="http://www.gqrelic.com/2022/04/16/ssa-book-4/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 2. SSA种类和特性 本章首先介绍了SSA和non-SSA下的def-use链特性进行了分析。同时本章介绍了几种不同形式的SSA，包括最小SSA（Minimal SSA）、严格SSA（Strict SSA）、剪枝SSA（Pruned SSA）和常规和转换SSA（Conventional and transformed SSA） Def-use与use-def链">
+<meta property="og:description" content="《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-04-09T06:31:44.000Z">
-<meta property="article:modified_time" content="2022-04-17T14:33:59.624Z">
+<meta property="article:published_time" content="2022-04-16T13:37:14.000Z">
+<meta property="article:modified_time" content="2022-04-19T15:36:00.405Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>《SSA Book》- 2. SSA种类和特性 - GQRelic的Blog</title>
+  <title>《SSA Book》- 4. SSA的基本析构算法 - GQRelic的Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -176,7 +176,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="《SSA Book》- 2. SSA种类和特性"></span>
+            <span id="subtitle" data-typed-text="《SSA Book》- 4. SSA的基本析构算法"></span>
           
         </div>
 
@@ -187,8 +187,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2022-04-09 14:31" pubdate>
-          2022年4月9日 下午
+        <time datetime="2022-04-16 21:37" pubdate>
+          2022年4月16日 晚上
         </time>
       </span>
     
@@ -199,7 +199,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          2.8k 字
+          2.2k 字
         
       </span>
     
@@ -247,89 +247,105 @@
         <div id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">《SSA Book》- 2. SSA种类和特性</h1>
+            <h1 style="display: none">《SSA Book》- 4. SSA的基本析构算法</h1>
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--2.-ssa种类和特性">《SSA Book》- 2. SSA种类和特性</h1>
-<p>本章首先介绍了SSA和non-SSA下的def-use链特性进行了分析。同时本章介绍了几种不同形式的SSA，包括最小SSA（Minimal
-SSA）、严格SSA（Strict SSA）、剪枝SSA（Pruned
-SSA）和常规和转换SSA（Conventional and transformed SSA）</p>
-<h2 id="def-use与use-def链">Def-use与use-def链</h2>
-<p>Def-use与use-def链并不是SSA特有的东西，非SSA形式下的每一个变量的所有def和use之间仍然存在def-use与use-def链。但是在非SSA形式中，由于存在多个def和use，需要用类似二维数组的形式，对变量所有的def和use之间的关系进行记录。然而，在SSA形式中每个变量只被def一次。因此每个变量仅需记录所有它的use，每一个use都对应了一条def-use
-chain，这样就可以用更为稀疏的形式对def-use关系进行存储。</p>
-<p>SSA形式下的def-use与use-def链的优势可以总结为：</p>
-<ol type="1">
-<li>数量相较non-SSA下普遍更少，并且更加便于数据存储；</li>
-<li>更加方便数据流分析。SSA形式下的数据流分析只需要在def处保存数据流分析信息。在更新某一个def的数据流信息时，可以直接利用该条def所使用的变量对应的use-def链，获得存储在其他def处的数据流信息。</li>
-</ol>
-<h2 id="不同形式的ssa">不同形式的SSA</h2>
-<p>在满足SSA定义“每个变量在程序中有且只有一个赋值语句”的前提下，Φ函数可以被插入到程序中不同的位置，因此同一个程序对应的SSA形式不是唯一的。通过增加更多约束，可以细分为不同SSA类型。</p>
-<h3 id="最小ssaminimal-ssa">最小SSA（Minimal SSA）</h3>
-<p>最小SSA指代的是“Φ函数数量最小的SSA形式”。构建SSA的过程包含两个阶段：放置Φ函数、变量重命名。在放置的过程中，为同一个原始变量两个不同定义到出口的所有路径交汇处添加Φ函数，既能构成具有Minimality特性的最小SSA形式。在下一章中展示的构造SSA方式即为构造最小SSA的方法。</p>
-<blockquote>
-<p>TODO：为什么这样生成就能得到Minimal SSA呢？</p>
-</blockquote>
-<h3 id="严格ssastrict-ssa">严格SSA（Strict SSA）</h3>
-<p>如果每个变量在从入口到出口的每条路径上，use之前都已被def，那么SSA是严格的。利用支配（dominate）的概念对其进行描述，若SSA中每个use被其def支配，那么称为严格SSA。下图展示了non-strict和strict
-SSA。相较图(a)中的SSA形式，图(b)中新添加了两个Φ函数。很明显，图(b)中的SSA并不是Minimal
-SSA。</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--4.-ssa的基本析构算法">《SSA Book》- 4.
+SSA的基本析构算法</h1>
+<p>本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。</p>
+<p>SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。</p>
+<p>之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简单的指令替换，就可以完成SSA析构。析构的方法很简单，只需要在Φ函数的两个前驱基本块的末端增加两个复制语句。下图即为一个析构的例子：</p>
 <figure>
 <img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-2-2022-04-09-18-34-30.jpg" srcset="/img/loading.gif" lazyload
-alt="non-strict SSA及其对应的strict SSA。⊥表示未定义的值" />
-<figcaption aria-hidden="true">non-strict SSA及其对应的strict
-SSA。⊥表示未定义的值</figcaption>
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-16-23-06-59.png" srcset="/img/loading.gif" lazyload
+alt="面向C-SSA中Φ语句的析构方式" />
+<figcaption aria-hidden="true">面向C-SSA中Φ语句的析构方式</figcaption>
 </figure>
-<p>严格SSA带来的好处主要在特定算法中体现，包括：</p>
+<p>但是，针对上述过程存在一些问题：</p>
 <ol type="1">
-<li>更好判断在一个点上，变量是否是活跃的（Live），可以应用于到达定值分析等；</li>
-<li>测试两个变量是否相互干涉（interfere），可以用作图染色中，不需要另外显式构造变量间干涉图。</li>
+<li>为什么有了live-ranges的互相重叠，就不能直接转换了呢？</li>
+<li>如何将T-SSA转换为C-SSA呢？</li>
+<li>基本快入口处的多个Φ函数是并行语句，转换后的复制语句是串行执行，如何进行转换呢？</li>
 </ol>
-<h3 id="剪枝ssapruned-ssa">剪枝SSA（Pruned SSA）</h3>
-<p>剪枝SSA是在最小SSA的基础上，添加约束“如果变量在基本块的入口处不是活跃的，就不必插入Φ函数”。以下图为例，图(a)是没有经过修剪的最小SSA形式，在经过了值编号（Value
-numbering）之后，Z1与Z2被认为是死变量，Z3与Y3具有相同的值。因此，关于Z3的Φ函数被删除，得到了图(b)中的剪枝SSA。</p>
+<h2 id="朴素析构方法带来的问题">朴素析构方法带来的问题</h2>
+<p>在对C-SSA的定义中提到了Φ函数对应的Φ-web。首先，如果x和y同时出现在同一个Φ函数中，x和y即为Φ-related的。所有被related到一起的变量构成了一个Φ-web。下面的算法利用并查集即可发现所有存在的Φ-web，union是并查集数据结构中的函数。</p>
 <figure>
 <img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-2-2022-04-09-22-07-40.png" srcset="/img/loading.gif" lazyload
-alt="剪枝前后的SSA" />
-<figcaption aria-hidden="true">剪枝前后的SSA</figcaption>
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-21-04-24.png" srcset="/img/loading.gif" lazyload
+alt="Φ-web发掘算法" />
+<figcaption aria-hidden="true">Φ-web发掘算法</figcaption>
 </figure>
-<p>可以发现，剪枝SSA的Φ函数数量可以小于最小SSA中的数量。这是因为最小SSA的minimality是指的是“不在生成的SSA上进行优化”前提下的Φ函数数量最小，而剪枝则对SSA本身进行了优化。</p>
-<p>针对剪枝具体进行的阶段，书中给出了两种策略：</p>
-<ol type="1">
-<li>先建立好最小SSA，然后进行死代码消除</li>
-<li>在构造SSA的时候，对Φ函数进行活跃分析，删除不活跃的Φ函数</li>
-</ol>
-<p>第三章提出了半剪枝SSA（Semi-pruned
-SSA）。因为剪枝SSA需要进行活跃变量分析，有较高的代价，所以可以考虑先把最小SSA变成半剪枝SSA的形式。半剪枝SSA对只存在于单个基本块中的局部变量生成的Φ函数进行消除。这样，在进行活跃变量分析时，部分变量被消除，活跃分析代价变少。</p>
-<blockquote>
-<p>注：LLVM中使用Mem2reg构建SSA时，即为通过半剪枝SSA构造剪枝SSA的方法。</p>
-</blockquote>
-<h3 id="conventional-ssa和transformed-ssa">Conventional SSA和Transformed
-SSA</h3>
-<p>如果两个变量的活动范围（Live-range）相交，它们就会相互干涉（interference）。从Φ函数出发，到所有Φ函数参数的定义连接起来，可以构成一个网络。当网络中的变量活跃范围互相不干涉时，则被称作传统（Conventional
-SSA，C-SSA）。对C-SSA进行优化之后，可能会破坏这个性质，即被称作变形SSA（Transformed
-SSA，T-SSA）。</p>
-<p>下图展示了同一个控制流图的不同状态。图(a)为原始控制流图，图(b)为添加Φ函数并且重命名之后的SSA。这个SSA是最小SSA，同时也是C-SSA。在C-SSA的基础上进行复制传播（copy
-propagation），即可得到图(c)。可以发现，Φ函数中两个变量的网络在第一个基本块上重合，因此为T-SSA。</p>
+<p>接下来的这一部分困扰了我很久，我阅读原文理解的是：检测到Φ-web之后，如果存在Φ-web中活跃区间的冲突，则存在关键边上的问题，可能会导致lost-copy
+problem和swap
+problem，因此不能进行直接的Φ转换。但是，我实在没能理解为什么有活跃区间冲突后，就会导致这两个问题。</p>
+<p>于是，我直接参考了论文《Practical Improvements to the Construction
+and Destruction of Static Single Assignment
+Form》。论文里面的逻辑关系感觉更容易理解。</p>
+<h3 id="关键边critical-edges">关键边（Critical Edges）</h3>
+<p>SSA析构过程出现的问题都是优化算法导致的。首先介绍关键边。关键边定义为具有多个后继块和具有多个前继块之间的边。图中的红色边即为关键边。当对Φ函数使用上面的方法进行分割后，如果程序沿着不通往φ函数的路径执行，那么不该发生的复制就会发生。</p>
 <figure>
 <img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-2-2022-04-09-23-23-25.png" srcset="/img/loading.gif" lazyload
-alt="复制传播将C-SSA转化成T-SSA" />
-<figcaption aria-hidden="true">复制传播将C-SSA转化成T-SSA</figcaption>
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-00-53.png" srcset="/img/loading.gif" lazyload
+alt="关键边以及析构Φ存在的问题" />
+<figcaption aria-hidden="true">关键边以及析构Φ存在的问题</figcaption>
 </figure>
-<p>C-SSA形式在对SSA进行析构时（即将其转化为实际机器代码的过程）具有优势：C-SSA的析构过程是很简单的，直接将所有的定义和使用都被重命名以使用新变量，并且删除所有涉及这个等价类的Φ函数。以上图(b)为例，变量a2和a3被重命名为新的单独的变量，对应的Φ函数a4直接被删除。因此，在析构SSA过程中，首先要将T-SSA转化成C-SSA的形式。通常这个转化过程通过添加复制操作来完成。</p>
-<p>其次，C-SSA形式更易于部分算法获得一些SSA的特性，这些特性在T-SSA中可能是难以被发现的。例如局部冗余消除（PRE）就利用了这些特性（第11章）。</p>
-<p>除了以上两种情况，通常情况下都不会主动去维护SSA的Conventional性质。</p>
-<h2
-id="关于干涉interference的进一步讨论">关于干涉（interference）的进一步讨论</h2>
-<p>干涉概念的最终目的，是为了标明两个变量是否能通过同一个寄存器暂存。在之前的定义中，两个变量的live-range重叠，则认为两个变量是互相干涉的。这个对于干涉的定义实际上有些严苛了。实际上，可能存在“两个变量互相不干涉，但是他们live-range重叠”的情况。下面给出两个例子：</p>
+<p>为了解决这个现象，就需要将所有关键边分割开，然后再对Φ函数进行普通的替换。对于所有存在多个前驱的基本块B，判断每一个前驱是否具有其他的后继。如果Bi存在其他的后继，那么就在Bi和B之间添加一个基本快Bi'。遍历完毕后，再向新添加的基本块Bi'中增加赋值ai'=ai，并修改基本块B开头处的Φ语句中的ai为ai'。算法如下所示：</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-22-57-26.png" srcset="/img/loading.gif" lazyload
+alt="使T-SSA变成C-SSA的关键边分割算法" />
+<figcaption
+aria-hidden="true">使T-SSA变成C-SSA的关键边分割算法</figcaption>
+</figure>
+<p>下图展示了变换的例子。添加基本块之后，之前提到的关键边带来的问题被消除了。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-23-23-16.png" srcset="/img/loading.gif" lazyload
+alt="关键边分割实例" />
+<figcaption aria-hidden="true">关键边分割实例</figcaption>
+</figure>
+<p>上面最简单的关键边分割算法有很多问题：</p>
 <ol type="1">
-<li>如果两个变量在任何时间点都具有相同的值，那么他们之间是不干涉的；</li>
-<li>可能两个变量的live-range在静态分析时是重叠的，但是可能会因为特殊的基本块跳转条件，导致实际执行时两个变量不会在同一时刻活跃，那么他们之间也是不干涉的。</li>
+<li>因为架构限制，异常处理代码等问题，编译器可能不允许分割给定的边；</li>
+<li>添加大量复制操作可能会低效。虽然可以在后面的寄存器分配中进行合并（第22章中提到的合并启发式算法可以有效地移除这些副本），但是带着这么多复制进行编译也是不合适的。</li>
 </ol>
-<p>以上两个特例大多是可以通过静态分析过程发现的，这种优化后的干涉定义相较于简单且严苛的干涉定义，能使得部分算法取得更好的结果。</p>
+<p>第21章会提出方法解决上面的问题。</p>
+<h3 id="lost-copy-problem">Lost-Copy Problem</h3>
+<p>关键边带来的复制语句的错误执行，在一定情况下会造成错误。典型的一个错误为：当进行Copy
+folding优化之后，且存在一个或多个后向关键边时，将会发生“Lost-Copy”
+Problem。</p>
+<p>下图即展示了“Lost-Copy”问题的例子。图(a)为原始的C-SSA。在进行复制传播之后，图(b)中变量y由x3进行了替代。图(c)显示了使用朴素算法将φ函数替换为复制语句的结果。显然，代码的结果发生了变化。而图(d)使用之前提到的关键边切割方法来解决问题。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-11-25.png" srcset="/img/loading.gif" lazyload
+alt="导致Lost-Copy Problem的代码示例" />
+<figcaption aria-hidden="true">导致Lost-Copy
+Problem的代码示例</figcaption>
+</figure>
+<p>造成这一切原因的即为Copy
+folding扩大了原先x3的活跃范围，这个活跃范围甚至覆盖了对x2的赋值。编译器在转换Φ函数的时候，必须要考虑插入的复制语句，对于非Φ函数的语句的后继基本块仍然有效。</p>
+<h3 id="swap-problem">Swap Problem</h3>
+<p>此外，同样是Copy
+folding导致的另一个问题。下图给出了一个案例。图(a)为原始C-SSA，图(b)为进行了常量折叠之后的代码。图(c)显示了使用朴素算法将φ函数替换为复制语句的结果。因为Φ语句原来是并行执行的，而这样的直接转换破坏了并行特性，导致了a3与b3之间的互相干涉，使得结果错误。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-23-23-40.png" srcset="/img/loading.gif" lazyload
+alt="导致Swap Problem的代码示例" />
+<figcaption aria-hidden="true">导致Swap Problem的代码示例</figcaption>
+</figure>
+<p>基本块开头的多个Φ函数在进行析构的过程中，将会为前驱添加多个复制语句。如果其中一个复制语句的结果，是另一个复制语句的操作数，那么复制语句的不同顺序则会对结果产生影响。下面的算法会自动保存上述复制语句的结果，以实现并行的效果。使用算法后可以得到上图中的图(d)，析构结果再次正确。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-18-21-17-58.png" srcset="/img/loading.gif" lazyload
+alt="用顺序复制操作的序列替换并行Φ函数" />
+<figcaption
+aria-hidden="true">用顺序复制操作的序列替换并行Φ函数</figcaption>
+</figure>
+<h2 id="对朴素析构算法的总结">对朴素析构算法的总结</h2>
+<p>综上所述，C-SSA相较T-SSA，Φ-web的变量之间不存在干涉的现象。但是，这并不是导致析构出错的充分条件。只有在如Lost-Copy
+Problem和Swap
+Problem的特殊情况下，才会导致错误的发生。本章目前只讲了解决这些问题的最朴素方法（切割关键边，并行转串行），后续会有更实际高效的析构方法。</p>
 
               
             </div>
@@ -378,18 +394,12 @@ id="关于干涉interference的进一步讨论">关于干涉（interference）�
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/04/10/ssa-book-3/" title="《SSA Book》- 3. SSA的基本构造算法">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">《SSA Book》- 3. SSA的基本构造算法</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2022/04/07/ssa-book-1/" title="《SSA Book》- 1. 介绍">
-                        <span class="hidden-mobile">《SSA Book》- 1. 介绍</span>
+                      <a href="/2022/04/14/back-end-opt-1/" title="编译后端优化：If-Conversion算法与LLVM实现">
+                        <span class="hidden-mobile">编译后端优化：If-Conversion算法与LLVM实现</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

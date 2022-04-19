@@ -16,22 +16,22 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 3.1. SSA的标准构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的">
+    <meta name="description" content="《SSA Book》- 3. SSA的基本构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置">
 <meta property="og:type" content="article">
-<meta property="og:title" content="《SSA Book》- 3.1. SSA的标准构造算法">
+<meta property="og:title" content="《SSA Book》- 3. SSA的基本构造算法">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/10/ssa-book-3/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 3.1. SSA的标准构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的">
+<meta property="og:description" content="《SSA Book》- 3. SSA的基本构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-04-10T06:23:47.000Z">
-<meta property="article:modified_time" content="2022-04-14T15:20:29.335Z">
+<meta property="article:modified_time" content="2022-04-16T15:59:55.055Z">
 <meta property="article:author" content="Yuge Chen">
-<meta property="article:tag" content="SSA">
 <meta property="article:tag" content="编译原理">
+<meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>《SSA Book》- 3.1. SSA的标准构造算法 - GQRelic的Blog</title>
+  <title>《SSA Book》- 3. SSA的基本构造算法 - GQRelic的Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -176,7 +176,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="《SSA Book》- 3.1. SSA的标准构造算法"></span>
+            <span id="subtitle" data-typed-text="《SSA Book》- 3. SSA的基本构造算法"></span>
           
         </div>
 
@@ -247,12 +247,12 @@
         <div id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">《SSA Book》- 3.1. SSA的标准构造算法</h1>
+            <h1 style="display: none">《SSA Book》- 3. SSA的基本构造算法</h1>
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--3.1.-ssa的标准构造算法">《SSA Book》- 3.1.
-SSA的标准构造算法</h1>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--3.-ssa的基本构造算法">《SSA Book》- 3.
+SSA的基本构造算法</h1>
 <p>上班了，更新速度明显减慢 /(ㄒoㄒ)/~~，争取每周能有2次更新。</p>
 <p>原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。</p>
 <h2 id="最小ssa构造流程总览">最小SSA构造流程总览</h2>
@@ -417,9 +417,9 @@ set即为在CFG中可以被S的两个或更多不同元素通过不相交路径�
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/SSA/">#SSA</a>
-      
         <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
+      
+        <a href="/tags/SSA/">#SSA</a>
       
     </div>
   
