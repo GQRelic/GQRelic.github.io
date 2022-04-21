@@ -24,10 +24,10 @@
 <meta property="og:description" content="《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-04-16T13:37:14.000Z">
-<meta property="article:modified_time" content="2022-04-19T15:36:00.405Z">
+<meta property="article:modified_time" content="2022-04-21T14:53:06.088Z">
 <meta property="article:author" content="Yuge Chen">
-<meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
+<meta property="article:tag" content="编译原理">
 <meta name="twitter:card" content="summary_large_image">
   
   
@@ -343,9 +343,9 @@ alt="用顺序复制操作的序列替换并行Φ函数" />
 aria-hidden="true">用顺序复制操作的序列替换并行Φ函数</figcaption>
 </figure>
 <h2 id="对朴素析构算法的总结">对朴素析构算法的总结</h2>
-<p>综上所述，C-SSA相较T-SSA，Φ-web的变量之间不存在干涉的现象。但是，这并不是导致析构出错的充分条件。只有在如Lost-Copy
+<p>综上所述，进行了优化算法之后得到的T-SSA，存在Φ-web的变量干涉的现象。一旦存在变量干涉，则可能会导致如Lost-Copy
 Problem和Swap
-Problem的特殊情况下，才会导致错误的发生。本章目前只讲了解决这些问题的最朴素方法（切割关键边，并行转串行），后续会有更实际高效的析构方法。</p>
+Problem这样的错误。针对这些错误，本章目前只讲了解决这些问题的最朴素方法（切割关键边，并行转串行语句的方法），后续会有更实际高效的析构方法。</p>
 
               
             </div>
@@ -378,9 +378,9 @@ Problem的特殊情况下，才会导致错误的发生。本章目前只讲了�
     <div class="post-meta">
       <i class="iconfont icon-tags"></i>
       
-        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
-      
         <a href="/tags/SSA/">#SSA</a>
+      
+        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
       
     </div>
   
