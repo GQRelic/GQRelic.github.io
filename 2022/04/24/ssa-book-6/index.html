@@ -1,0 +1,726 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/logo.jpg">
+  <link rel="icon" href="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/logo.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#14113A">
+  <meta name="author" content="Yuge Chen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="《SSA Book》- 6. 基于SSA的数据流传播 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常">
+<meta property="og:type" content="article">
+<meta property="og:title" content="《SSA Book》- 6. 基于SSA的数据流传播">
+<meta property="og:url" content="http://www.gqrelic.com/2022/04/24/ssa-book-6/index.html">
+<meta property="og:site_name" content="GQRelic的Blog">
+<meta property="og:description" content="《SSA Book》- 6. 基于SSA的数据流传播 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-04-24T14:13:54.000Z">
+<meta property="article:modified_time" content="2022-04-25T14:29:24.784Z">
+<meta property="article:author" content="Yuge Chen">
+<meta property="article:tag" content="SSA">
+<meta property="article:tag" content="编译原理">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  <title>《SSA Book》- 6. 基于SSA的数据流传播 - GQRelic的Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    var CONFIG = {"hostname":"www.gqrelic.com","root":"/","version":"1.8.14","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"7NrGawpjjFpshn593tHXOpAC-gzGzoHsz","app_key":"jsa2SBVVQArpKrjMeiI3efKs","server_url":"https://7nrgawpj.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.1.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GQRelic&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/blog-background.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="《SSA Book》- 6. 基于SSA的数据流传播"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-04-24 22:13" pubdate>
+          2022年4月24日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          2k 字
+        
+      </span>
+    
+
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">《SSA Book》- 6. 基于SSA的数据流传播</h1>
+            
+            <div class="markdown-body">
+              
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--6.-基于ssa的数据流传播">《SSA Book》- 6.
+基于SSA的数据流传播</h1>
+<p>从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。</p>
+<p>本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow
+Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常数传播而永远不会发生的分支，同时速度还很快！本章的算法不止能被运用于稀有条件常数传播，只要修改数据流传播函数，对于其他的前向数据流分析同样适用。</p>
+<h2 id="算法流程">算法流程</h2>
+<p>首先，考虑常量传递中数据流传递的方程。常量传播算法采用的格（Lattice）是一个最简单的三层格，T表示尚未确定的值，⊥表示不为常量的值，而中间的多个v则为已知常量值的常量。当两个数据流信息交汇时候，考虑下列情况：</p>
+<ol type="1">
+<li>如果两个都是常量，且常量值相等，那么交汇结果继续是这个常量；</li>
+<li>如果一个是常量，另一个是T，那么结果为常量；</li>
+<li>如果两个都是T，那么结果为T；</li>
+<li>其他情况，结果都是⊥。</li>
+</ol>
+<p>SSA形式的数据流分析依赖于变量的def-use链，这些信息被提取出来构成了SSA
+graph。下图即为一个例程和它的SSA
+graph。SSA图的节点对应于程序的操作，边连接了变量的定义和它的所有use。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-24-22-35-24.png" srcset="/img/loading.gif" lazyload
+alt="示例程序及其SSA graph" />
+<figcaption aria-hidden="true">示例程序及其SSA graph</figcaption>
+</figure>
+<p>接着就是算法介绍。该算法虽然也不算上很复杂，但是涉及对两个列表的数据更新。首先给出算法全貌：</p>
+<p><strong>Step 1.</strong>
+首先将CFG的所有边设置为executable=0，列表CFGWorkList初始化为CFG
+start节点的出边，而 列表SSAWorkList初始化为空。</p>
+<p><strong>Step 2.</strong>
+任选两个列表其中一个，从顶端各自拿出一个元素。</p>
+<p><strong>Step 3.</strong> 如果拿出的元素是一个CFG中的边，那么：</p>
+<ol type="1">
+<li>设置executable=1；</li>
+<li>对于这个边目标基本块中的Φ函数，对它调用Visit过程；</li>
+<li>如果目标基本块是第一次被访问，那么对于它的所有操作调用Visit过程；</li>
+<li>如果目标节点只有一个executable=0的输出边，那么将该边附加到CFGWorkList。</li>
+</ol>
+<p><strong>Step 4.</strong> 如果该元素是一个SSA图中的边，那么：</p>
+<ol type="1">
+<li>如果目标是一个Φ操作，那么对它调用Visit过程；就在这个Φ函数上合并这个操作数的数据流信息；</li>
+<li>对于其他操作，检查CFG中这些操作所在节点的传入边缘的是否executable；如果存在可执行的边缘，那么对它调用Visit过程。</li>
+</ol>
+<p><strong>Step 5.</strong> 重复执行上面的Step
+2-4，直到两个列表均为空。</p>
+<p>上面的过程中提到的Visit过程如下：</p>
+<ol type="1">
+<li>根据操作的类型传播数据流信息：
+<ol type="1">
+<li>Φ函数：如果Φ函数的某个操作数对应的控制边是executable的，那么就在这个Φ函数上合并这个操作数的数据流信息；</li>
+<li>条件分支：利用数据流分析每个操作数，并判断该条件分支中分析之后无法被执行的边，并把这个边添加到CFGWorkList中；</li>
+<li>普通操作：利用基本的数据流方法传递信息；</li>
+</ol></li>
+<li>在上面更新数据流的过程中，当一个操作的数据流信息发生变化时，将该操作在SSA图中所有出边，都将被附加到SSAWorkList中。</li>
+</ol>
+<!-- ![带有Φ操作和分支常量传递的例子](https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-25-21-34-15.png) -->
+<p>算法的原理其实很好被理解，在CFG中进行正常的数据流分析，每次更新数据流时借助SSA图边的帮助，即利用def-use边进行数据流分析。每次更新数据流信息，可能更新节点的出边节点的数据流也会受到影响，因此把这些边添加到待处理列表中。直到列表清空，代表没有数据流信息更新了，数据流分析结束。</p>
+<blockquote>
+<p>如果哪天心情好再补个例子吧(*^_^*)，原文中例子挺清楚的，但是要画图展示出来又挺麻烦的。</p>
+</blockquote>
+<h2 id="算法特性与限制">算法特性与限制</h2>
+<h3 id="算法复杂度分析">算法复杂度分析</h3>
+<p>首先对算法的复杂度进行分析，首先SSA图的每一条边至少要处理一次，且被重复更新的最大次数取决于lattice格的高度h。此外CFG中的每一条边最多被处理一次。因此算法的复杂度为Edge(SSA)*h+Edge(CFG)。</p>
+<p>在研究中发现，SSA图大小的规模通常是随程序大小线性扩大的。在实践中，基于SSA的传播引擎优于传统方法。这是由于能沿着SSA的def-use链直接从变量的定义传播到它的使用，而不用为每个基本块的每个语句都保存数据流信息，只需要为每个变量的定义记录一份信息。</p>
+<h3 id="限制">限制</h3>
+<p>因为信息只能在数据的定义和使用之间传播，这限制了一些数据流问题的解决。首先，该算法缺乏“某个点上，这个变量有没有live或者可不可用”的信息。因为基于SSA的分析不是数据流流动的，而是一步到位的从def到了use，这样无法判断在某一个程序点上的数据流信息。</p>
+<p>此外，使用SSA图的数据流分析只能解决正向传播数据流分析问题。由于SSA图的结构，无法像CFG那样简单地反转图中的边进行反向传递。此外，对于正向控制流，φ函数被放置在正向程序的连接点上，而无法捕获反向控制流图中的连接点信息。然而，有基于类似于SSA形式的算法可以处理反向数据流分析，在其他章节会对这个方法进行描述。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%BC%96%E8%AF%91/" class="category-chain-item">编译</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/SSA/">#SSA</a>
+      
+        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
+      
+    </div>
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/04/23/ssa-book-5/" title="《SSA Book》- 5. SSA的高级构造算法">
+                        <span class="hidden-mobile">《SSA Book》- 5. SSA的高级构造算法</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#comments', function() {
+      var light = 'github-light';
+      var dark = 'github-dark';
+      var schema = document.documentElement.getAttribute('data-user-color-scheme');
+      if (schema === 'dark') {
+        schema = dark;
+      } else {
+        schema = light;
+      }
+      window.UtterancesThemeLight = light;
+      window.UtterancesThemeDark = dark;
+      var s = document.createElement('script');
+      s.setAttribute('src', 'https://utteranc.es/client.js');
+      s.setAttribute('repo', 'GQRelic/commit-utterance');
+      s.setAttribute('issue-term', 'pathname');
+      
+      s.setAttribute('label', 'utterances');
+      
+      s.setAttribute('theme', schema);
+      s.setAttribute('crossorigin', 'anonymous');
+      document.getElementById('comments').appendChild(s);
+    })
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.0/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
