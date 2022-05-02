@@ -202,15 +202,78 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
+        <a href="/2022/05/01/ssa-book-8/" target="_self">
+          《SSA Book》- 8. 基于SSA的Register Allocation - Spilling
+        </a>
+      </h1>
+
+      <a class="index-excerpt" href="/2022/05/01/ssa-book-8/" target="_self">
+        <div>
+          
+          《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2022-05-01 14:43" pubdate>
+              2022-05-01
+            </time>
+          </div>
+        
+        
+          <div class="post-meta mr-3 d-flex align-items-center">
+            <i class="iconfont icon-category"></i>
+            
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%BC%96%E8%AF%91/" class="category-chain-item">编译</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+          </div>
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
+            
+              <a href="/tags/SSA/">#SSA</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
         <a href="/2022/04/28/ssa-book-7/" target="_self">
-          《SSA Book》- 7. 基于SSA的活跃变量分析
+          《SSA Book》- 7. 基于SSA的Liveness Analysis
         </a>
       </h1>
 
       <a class="index-excerpt" href="/2022/04/28/ssa-book-7/" target="_self">
         <div>
           
-          《SSA Book》- 7. 基于SSA的活跃变量分析 本章要介绍的是活跃变量分析（Live analysis）。活跃变量的定义为：  对于变量v和程序点p，如果在CFG中沿着从p开始的某条路径会引用变量v在p点的值，则称变量v在点p是活跃（live）的，否则称变量x在点p不活跃（dead）。  字面意思即为这个变量如果在这一个点后还会被使用，那么它就是活跃的。活跃变量分析地结果将会在
+          《SSA Book》- 7. 基于SSA的Liveness Analysis 本章要介绍的是活跃变量分析（Live analysis）。活跃变量的定义为：  对于变量v和程序点p，如果在CFG中沿着从p开始的某条路径会引用变量v在p点的值，则称变量v在点p是活跃（live）的，否则称变量x在点p不活跃（dead）。  字面意思即为这个变量如果在这一个点后还会被使用，那么它就是活跃的。活
         </div>
       </a>
 
@@ -266,14 +329,14 @@
       <h1 class="index-header">
         
         <a href="/2022/04/24/ssa-book-6/" target="_self">
-          《SSA Book》- 6. 基于SSA的数据流传播
+          《SSA Book》- 6. 基于SSA的Information Propagating
         </a>
       </h1>
 
       <a class="index-excerpt" href="/2022/04/24/ssa-book-6/" target="_self">
         <div>
           
-          《SSA Book》- 6. 基于SSA的数据流传播 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常
+          《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够
         </div>
       </a>
 

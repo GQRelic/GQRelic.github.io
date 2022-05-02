@@ -16,22 +16,22 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 5. SSA的高级构造算法 在“3.SSA的基本构造算法”中，介绍了构造SSA的基本方法。Φ语句将会被插入至变量定义的支配边界位置，该Φ语句本身也将变成新的定义。本文将会给出关于求解支配边界DF+集合的高级算法，包括：  基于DJ-grpah构造DF+集合的方法； 基于数据流分析的DF+集合构造方法； 基于Loop Nesting Forest的DF+集合构造方">
+    <meta name="description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）">
 <meta property="og:type" content="article">
-<meta property="og:title" content="《SSA Book》- 5. SSA的高级构造算法">
-<meta property="og:url" content="http://www.gqrelic.com/2022/04/23/ssa-book-5/index.html">
+<meta property="og:title" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling">
+<meta property="og:url" content="http://www.gqrelic.com/2022/05/01/ssa-book-8/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 5. SSA的高级构造算法 在“3.SSA的基本构造算法”中，介绍了构造SSA的基本方法。Φ语句将会被插入至变量定义的支配边界位置，该Φ语句本身也将变成新的定义。本文将会给出关于求解支配边界DF+集合的高级算法，包括：  基于DJ-grpah构造DF+集合的方法； 基于数据流分析的DF+集合构造方法； 基于Loop Nesting Forest的DF+集合构造方">
+<meta property="og:description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）">
 <meta property="og:locale" content="zh_CN">
-<meta property="article:published_time" content="2022-04-23T04:53:14.000Z">
-<meta property="article:modified_time" content="2022-04-24T05:26:32.118Z">
+<meta property="article:published_time" content="2022-05-01T06:43:10.000Z">
+<meta property="article:modified_time" content="2022-05-02T10:43:00.632Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>《SSA Book》- 5. SSA的高级构造算法 - GQRelic的Blog</title>
+  <title>《SSA Book》- 8. 基于SSA的Register Allocation - Spilling - GQRelic的Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -176,7 +176,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="《SSA Book》- 5. SSA的高级构造算法"></span>
+            <span id="subtitle" data-typed-text="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling"></span>
           
         </div>
 
@@ -187,8 +187,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2022-04-23 12:53" pubdate>
-          2022年4月23日 下午
+        <time datetime="2022-05-01 14:43" pubdate>
+          2022年5月1日 下午
         </time>
       </span>
     
@@ -199,7 +199,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          4.1k 字
+          5.1k 字
         
       </span>
     
@@ -247,158 +247,188 @@
         <div id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">《SSA Book》- 5. SSA的高级构造算法</h1>
+            <h1 style="display: none">《SSA Book》- 8. 基于SSA的Register Allocation - Spilling</h1>
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--5.-ssa的高级构造算法">《SSA Book》- 5.
-SSA的高级构造算法</h1>
-<p>在“3.SSA的基本构造算法”中，介绍了构造SSA的基本方法。Φ语句将会被插入至变量定义的支配边界位置，该Φ语句本身也将变成新的定义。本文将会给出关于求解支配边界DF<sup>+</sup>集合的高级算法，包括：</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--8.-基于ssa的register-allocation---spilling">《SSA
+Book》- 8. 基于SSA的Register Allocation - Spilling</h1>
+<p>这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：</p>
 <ol type="1">
-<li>基于DJ-grpah构造DF<sup>+</sup>集合的方法；</li>
-<li>基于数据流分析的DF<sup>+</sup>集合构造方法；</li>
-<li>基于Loop Nesting Forest的DF<sup>+</sup>集合构造方法。</li>
+<li>有足够的寄存器给所有的变量吗？（spill test）</li>
+<li>如果是，选择哪个寄存器分配给哪个变量？（assignment）</li>
+<li>如果没有，我如何选择哪些变量暂存到内存？（spilling）</li>
 </ol>
-<h2 id="使用dj-grpah构造dfs">使用DJ-grpah构造DF<sup>+</sup>(S)</h2>
-<h3 id="算法原理">算法原理</h3>
-<p>在支配树上加上原有控制流图中剩余的边，即可构成DJ-graph，这些加上去剩余的边即为join
-edge（J-edge）。下图给出一个例子，可以发现，所有的J-edge出发点所在层数永远不会大于目标点。我们可以假设存在一个J-edge从8→7，那么则存在路径从3→8→7，那么6将不再支配7，这和现有的支配树是互相矛盾的。</p>
+<p>整体来说，最需要考虑的问题是Spilling和Assignment的方法。两个部分都较为复杂，因此分为两篇文章来描述。这篇文章讲的则是寄存器分配算法的总览，以及Spilling部分。</p>
+<h2 id="典型的寄存器分配算法类型">典型的寄存器分配算法类型</h2>
+<p>首先，需要考虑两种经典的分析方法：线性扫描和图染色方法。</p>
+<p><strong>线性扫描</strong>：线性扫描的方法以拓扑排序的方式依次遍历每个基本块，把变量def最晚的use之间的区域都视作变量的live区间。当遇到变量的定义时，我们检查是否有空闲的寄存器，如果成功（spill
+test），我们选择一个寄存器存放该变量（assignment）。如果没有，我们从当前存在的变量中选择使用最广泛的变量，将其溢出（spilling）。当我们遇到它的最后一次使用时，我们释放分配给它的寄存器。这样子有较高的效率，但是精度较低（因为有很多基本块不会被执行）。</p>
+<p><strong>图染色寄存器分配方法</strong>：基于图染色的寄存器分配方法，为基本块之间构造干涉图（Interference
+graph），分配器将尝试给干涉图着色，如果成功（spill
+test），那么着色则表示了寄存器对变量的有效分配结果（assignment）。如果不是，分配器将选择一些节点（通常是链接的节点数量最多的节点），并使用内存暂存（spilling）将它们从图中删除。虽然图染色能够提供更精确的分析，但它是np完全问题。</p>
 <figure>
 <img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-13-52-37.png" srcset="/img/loading.gif" lazyload
-alt="DJ-graph的例子" />
-<figcaption aria-hidden="true">DJ-graph的例子</figcaption>
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-26-26.png" srcset="/img/loading.gif" lazyload
+alt="线性扫描和图染色方法" />
+<figcaption aria-hidden="true">线性扫描和图染色方法</figcaption>
 </figure>
-<p>对于DJ-graph中的两个节点w和x，若w是x的祖先节点，那么w的支配边界集合DF(w)满足下列公式：</p>
+<p>在SSA下的变量的use都是被它的def支配的（应该是指严格SSA，因为编译器构造出来的SSA一般都是严格的），因此，SSA中活跃范围都是树形的，而不会出现“在某个基本快中合并”的情况，因为这些合并都被Φ函数创建新变量给终结了。下图即为SSA形势下的活动范围和传统的区别：</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-47-40.png" srcset="/img/loading.gif" lazyload
+alt="SSA形式下的变量活动范围" />
+<figcaption aria-hidden="true">SSA形式下的变量活动范围</figcaption>
+</figure>
+<p>这个特性带来了一些好处。在SSA下，基于图的分配方法中的干涉图变成了弦图，这意味着可以在图着色的过程，使用一些简单算法。这个在后面进行介绍。</p>
+<p>对于线性扫描策略，在SSA下可以进行优化版本的Tree-scan树扫描策略。这种基于贪婪的分配会扫描<strong>支配树</strong>（而不是原始的CFG），按照自上而下的顺序从根到叶给变量着色，分配寄存器。因为树的分支是独立的，所以对一个分支着色不会对树的其他分支产生影响。树扫描策略的伪代码如下所示。简单来说，当到达变量最后一个use时，这个颜色变得可用；当到达变量的定义时，为它选择一个颜色即可。然后到达基本块末尾时，就以BFS为每一个子节点调用该函数。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png" srcset="/img/loading.gif" lazyload
+alt="Tree-scan策略" />
+<figcaption aria-hidden="true">Tree-scan策略</figcaption>
+</figure>
+<p>无论是树扫描还是图染色，我们使用的方法都是首先把同时live的最大变量数量降低至寄存器数量R以下，然后再为它进行染色。这样就可以把coloring步骤和spilling步骤分开。下面我们对Spill步骤进行介绍。</p>
+<h2 id="spilling溢出">Spilling：溢出</h2>
+<p>溢出过程对于线性扫描和图染色是不同的。对于线性扫描，它的分析是局部的，当遍历到程序的某个节点，发现活跃变量数量超过了寄存器上限时，算法将会对这一个小范围进行spill，也就是添加load和store操作将数据写回。这个过程是局部性的。但是，图染色使用了干涉图，这是一个全局性的概念。图染色的溢出意味着直接删除干涉图的一个节点，从而删除变量的整个生命范围。在每次使用这个变量时，都会从内存读取这个变量。</p>
+<p>图染色的这种方法叫做Spill
+everywhere的策略。spill的过程中需要用寄存器暂存load和store的数据，这些寄存器同样需要寄存器分配。因此，需要迭代进行寄存器分配过程，干涉图将重新构建。</p>
+<p>选择什么样的变量进行spill本质上是一个优化问题，我们的目标是：结果代码应该是可用R个寄存器着色的，且插入的load-store的代价应该是最小的。</p>
+<h2 id="graph-based的spill策略">Graph-based的spill策略</h2>
+<p>对于需要spill的节点选取，如果我们需要全局的考虑哪些变量需要spill，这个过程会是一个NP问题。因此这里使用基于贪婪的cost
+function。最简单的代价即为“节点的度”，优先写回度最高的节点即可。但是，只考虑节点的度是脱离了CFG本身的，所以我们要考虑更多的因素。</p>
+<p><strong>“useful”标签</strong>：这个属性表示了“在变量的生命周期中，同时活跃的变量超过寄存器数R的程序点数量”。对于这个属性的计算，需要在自底向上遍历CFG的过程中同时计算考虑两个元素：</p>
+<ol type="1">
+<li>对于每个程序点p，计算p.pressure，对应于p的定义点上活着的变量数量；</li>
+<li>对于变量v，具有(v→p).high的布尔值属性。标明这个程序点p有v的活跃，如果该值为true，则表明程序点的活跃变量数量大于寄存器数量。</li>
+</ol>
+<p>那么，useful标签的定义即为下式。如果v.useful=0，则说明对该变量进行spill是没有意义的。</p>
 <p><span class="math display">\[
-\begin{split}
-    DF(w) = &amp;\{z|z \in DF(x) \land z.depth \le w.depth \} \cup \\
-    &amp;\{z&#39;|y \in subtree(w)/subtree(x) \land
-y\stackrel{J}{\rightarrow}z&#39; \land z&#39;.depth \le w.depth \}
-\end{split}
+v.useful = |\{p:(v\to p)  \wedge p.pressure &gt; R \}|
 \]</span></p>
-<p>文字解释上述公式，DF(w)由两个部分组成，一部分是DF(x)中深度不大于w的节点，另一部分是w的子树中不属于x子树部分的节点y的J-edge，且目标的深度不大于w。</p>
-<!-- TODO：为什么这样就成立呢？ -->
+<h2 id="scan-based的spill策略">Scan-based的spill策略</h2>
+<p>上面基于图的方法太过于全局，往往无法取得很好的效果。所以更好的就是Scan-based的方法。基于扫描的方法能够更局部性的将变量写回到内存中，取得更高的寄存器利用率。</p>
+<p>下面给出了一个分配的算法。简单来说，对于每一个基本块B，都有一个B.in_regs集合，这个集合里面的变量就是要被放在寄存器中的变量。如果use的变量不在in_regs中，那么就需要把他load出来，并把这个v放到in_regs中，接着使用<strong>evict函数换下去一个变量</strong>。此外，对于last_used的，要把它从in_regs中删除；新def的变量，需要添加到in_regs中，同时也要调用evict换走一个变量。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-32-11.png" srcset="/img/loading.gif" lazyload
+alt="Furthest first spilling算法" />
+<figcaption aria-hidden="true">Furthest first spilling算法</figcaption>
+</figure>
+<p>这些过程是很直观的，最重要的就是我们根据什么来选择需要spill走的变量，也就是evict函数的实现。接下来，我们讨论的方法是“Furthest
+first”。当evict函数被调用时，我们将会把“下一次use隔得最远”的变量spill。</p>
+<h3 id="基于distance属性的furthest-first策略">基于Distance属性的Furthest
+first策略</h3>
+<p>下面的函数展示了基于Distance属性的evict函数实现。如果in_regs中的变量已经超过最大寄存器数量了，那么就把最大的distance的变量换出去，并且相应地添加store操作。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-35-03.png" srcset="/img/loading.gif" lazyload
+alt="基于distance属性的evict函数实现" />
+<figcaption
+aria-hidden="true">基于distance属性的evict函数实现</figcaption>
+</figure>
+<p>下面给出一个实际的控制流图例子。其中，程序点p0，p3和p4寄存器压力过高，需要选取变量spill。假设左边的分支被选取，且循环执行100次，那么x的“下次use的距离”将会达到101，非常远。假设右边的分支被选取，那么变量y的下次use距离为2，相对更远一些。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-15-46-37.png" srcset="/img/loading.gif" lazyload
+alt="选取变量进行spill的例子" />
+<figcaption aria-hidden="true">选取变量进行spill的例子</figcaption>
+</figure>
+<p>如果我们考虑压力高的程序点，左边的路径并没有寄存器压力过高的程序点，因此选取x进行spill只会优化p0的压力。反之，如果选取y，就能优化p0，p3和p4的压力。因此，最后的结果优先选择y作为spill变量。</p>
+<p>但是，假设p1也是一个压力过高的程序点，那么这个时候spill
+x就变得必要了，不然要存取100次变量y……</p>
+<p>综上所述，“distance”的概念是不够准确的。我们将用“profitability”的概念替换第一个最远算法中的“distance”概念。也就是对“能够受益于spill某个变量的程序点”数量的度量。</p>
+<h3
+id="使用profitability代替distance">使用profitability代替distance</h3>
+<p>设p是一个程序点，v是p处活跃的变量。设v.HP(p)（High-Pressure）是所有程序点q的集合满足：</p>
+<ol type="1">
+<li>在q处的寄存器压力大于R；</li>
+<li>v在q处是live的；</li>
+<li>存在一条从p到q的路径，它不包含v的任何use或者def。</li>
+</ol>
+<p>那么，spill v带来的profitability则为：</p>
+<p><span class="math display">\[
+v.spill_profitability(p)=\sum_{q\in v.HP(p)}q.frequency
+\]</span></p>
+<p>在之前的例子中，x.HP(p0)即为在p0处spill
+x受益的程序点的集合。下面的表格给出了我们的实例在两个场景下的不同变量的情况。在p1不是寄存器高压力点的情况下，我们会选择y；反之我们会选择x。</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th>p1寄存器压力低</th>
+<th>p1寄存器压力高</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>x.HP(p0)</td>
+<td>{p0}</td>
+<td>{p0,p1}</td>
+</tr>
+<tr class="even">
+<td>y.HP(p0)</td>
+<td>{p0,p3}</td>
+<td>{p0,p3}</td>
+</tr>
+<tr class="odd">
+<td>x.spill_profitability(p0)</td>
+<td>1</td>
+<td>51</td>
+</tr>
+<tr class="even">
+<td>y.spill_profitability(p0)</td>
+<td>1.5</td>
+<td>1.5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="基本块in_regs属性的初始化">基本块in_regs属性的初始化</h3>
+<h4
+id="普通基本块的in_regs初始化处理">普通基本块的in_regs初始化处理</h4>
+<p>上面的算法依赖于一个初始化的in_regs，并在这个集合的基础上对变量进行调整，因此我们需要首先计算in_regs的初始化。初始化算法基于拓扑排序，即在分析某个基本块时，它的前驱都已经被处理。那么前驱中的Live-in变量有三种情况：</p>
+<ol type="1">
+<li>这个变量在所有前驱基本块中都available（allpreds_in_regs）；</li>
+<li>在部分前驱基本块中available（somepreds_in_regs）；</li>
+<li>不在任何前驱基本块中available。</li>
+</ol>
+<p>变量是available的指这个变量已经被存在寄存器中了，还没有被spill出去。那么对这个基本块的B.in_regs计算如下。首先，先把allpreds_in_regs的变量放进去，然后再把部分前驱基本块中available集合中，profitability较小的变量放进去。这样得到最终的in_regs。（这里好像没有讲到如果allpreds_in_regs变量的数量超过上限了该怎么办？但仔细一想，如果allpreds_in_regs超了，那么前驱寄存器保存的变量数量肯定也是超过了的，所以这种allpreds_in_regs超了的情况应该不会发生）。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-16-24-31.png" srcset="/img/loading.gif" lazyload
+alt="普通基本块的B.in_regs的初值计算" />
+<figcaption
+aria-hidden="true">普通基本块的B.in_regs的初值计算</figcaption>
+</figure>
+<p>对于那些需要spill的变量，将会添加load操作在对应的前驱块中（或者前驱的critical
+edge上）。这个过程和析构Φ函数的过程类似，所以实际过程中一般都会在后期析构SSA的时候顺便把操作给添加了。</p>
+<h4 id="循环头的in_regs初始化处理">循环头的in_regs初始化处理</h4>
+<p>循环的in_regs情况会更加的复杂，和普通基本块中的情况会不一样。下面的例子展示了为循环头计算in_regs的情况：</p>
+<ol type="1">
+<li><p>例子(a)中，在上面的基本块末尾，假设x不再在寄存器中available（即已经被spill出去了），但是如果我们在p2
+load回来，那就需要load好多次。所以最好的方法就是添加在p1，也就是另外加一个基本块。那么，B.in_regs中将会包含x（就是下面的那个基本块），这和之前的分析是相反的。</p></li>
+<li><p>对于例子(b)中，假设在循环的入口处x仍然在寄存器中available，在标记为HP的地方寄存器溢出了，我们会在p0存储变量，然后在p2重新load回变量，这样也可以避免在循环内不断地被执行。因此，B.in_regs中将会不包含x，这也和之前的情况相反。</p></li>
+</ol>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-01-36.png" srcset="/img/loading.gif" lazyload
+alt="循环入口的B.in_regs初始值计算例子" />
+<figcaption
+aria-hidden="true">循环入口的B.in_regs初始值计算例子</figcaption>
+</figure>
+<p>所以，对于循环入口处的计算，需要下面的算法。其中，B.livein表示B和L的Live-In变量集合，L.Maxlive是指整个循环中需要寄存器最多的数量，而R是指寄存器的总数。如果L.Maxlive＞R，则必须要溢出L.Maxlive−R个变量，这些变量是具有最小profitability代价的变量。所以，不超过|B.livein|−(L.Maxlive−R)个变量将会在B中被分配至寄存器中，其他的变量都会被spill出去。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-19-35.png" srcset="/img/loading.gif" lazyload
+alt="循环入口基本块的B.in_regs的初值计算" />
+<figcaption
+aria-hidden="true">循环入口基本块的B.in_regs的初值计算</figcaption>
+</figure>
+<h3 id="对scan-based的spill算法总结">对Scan-based的spill算法总结</h3>
+<p>讲了这么多奇奇怪怪的东西，spill的整体算法包括几个阶段：首先，我们预先计算live-range和profitability的指标；然后，我们按照拓扑顺序遍历CFG，计算所有基本块B.in_regs的初始值。接着扫描每个基本块。在此阶段，我们在基本块边界维护寄存器和内存中可用的活动变量集，并对in_regs集合进行更新。最后，在分析的过程中，为代码添加load和store操作。</p>
 <blockquote>
-<p>TODO：不太理解为什么全部都存在“深度不大于w”的要求呢？</p>
+<p>好多，写的累死我了，下一次更新assignment部分！</p>
 </blockquote>
-<p>我们以计算DF(3)和DF(8)为例。在简单的构造方法中计算DF(3)时，我们需要遍历所有3支配的节点{3,4,5,6,7,8,9,10}，判断这些节点存不存在不被3所支配的后继，最终得到DF(3)={2}。接着同样的方法将会应用至DF(8)的求解过程。然而，在利用上述公式后，我们可以先计算DF(8)的值，接着直接利用DF(8)的结果，并遍历{3,4,5,6,7}，即可得到DF(3)。这样子有效减少了冗余运算。</p>
-<p>在求解DF<sup>+</sup>(S)的过程中，需要迭代的进行大量节点的DF计算。将上面的公式运用到算法，一次遍历节点便可求解得到DF<sup>+</sup>(S)，避免计算计算DF之间的冗余操作。</p>
-<h3 id="算法实现">算法实现</h3>
-<p>算法在求解DF<sup>+</sup>(S)时，将所有的节点存放至一个“Ordered
-Bucket”顺序桶中。顺序桶可以理解为一个具有N个槽的数组，N为支配树的高度，每个槽存放一个链表的开头，链表上连接了位于这个深度的节点。接着，对于桶中深度最深的点，执行Visit(x)算法。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-keyword">for</span> S中的每一个节点x &#123;<br>    InsertNode(x);<br>    x.visited = <span class="hljs-literal">false</span>;<br>&#125;<br><span class="hljs-keyword">while</span> x = 桶中最深节点 &#123;<br>    curr_x = x;<br>    x.visited = <span class="hljs-literal">true</span>;<br>    Visit(x)<br>&#125;<br></code></pre></td></tr></table></figure>
-<p>Visit()算法如下所示，对于每个节点的J-edge边使用传统的DF(x)计算方法，并把不在S中的节点存放到桶中；对于D-edge采用递归的方法，直接获取支配边目标节点的运算结果。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-16-00-22.png" srcset="/img/loading.gif" lazyload
-alt="过程：Visit(y)" />
-<figcaption aria-hidden="true">过程：Visit(y)</figcaption>
-</figure>
-<p>下图反映了计算之前控制流图中DF<sup>+</sup>({1,3,4,7})的过程：</p>
-<ol type="1">
-<li>首先，最深节点的支配边界DF(7)={2}，2被插入到DF<sup>+</sup>中，也被插入至桶中；</li>
-<li>计算节点4，首先J-edge指向的基本块5被插入到DF<sup>+</sup>和桶中；</li>
-<li>类似的分析将会被应用于5和6，这三个节点均不存在D-edge，因此只会添加J-edge至结果中。进行完上述过程之后，DF<sup>+</sup>({1,3,4,7})={2,5,6}，为如图中最右侧的状态；</li>
-<li>接着，需要分析当前最深节点3，节点3的D-edge中只有基本块8没有被visited，因此调用Visit(8)；</li>
-<li>8，9，10均不存在深度低于3的J-edge，因此遍历节点8以及8的子树，并没有新节点加入DF<sup>+</sup>之中；</li>
-<li>最终，遍历节点2和1时，不存在J-edge和没有visit的D-edge，遍历结束。结果为DF<sup>+</sup>({1,3,4,7})={2,5,6}</li>
-</ol>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-24-12-51-42.png" srcset="/img/loading.gif" lazyload
-alt="使用算法计算DF+({1,3,4,7})的过程" />
-<figcaption
-aria-hidden="true">使用算法计算DF<sup>+</sup>({1,3,4,7})的过程</figcaption>
-</figure>
-<h2 id="使用数据流计算构造dfs">使用数据流计算构造DF<sup>+</sup>(S)</h2>
-<p>数据流分析的几个关键元素如下所示：</p>
-<ol type="1">
-<li>初始化：对DJ图中的每一个节点x，初始化DF<sup>+</sup>(x)={}；</li>
-<li>遍历方法：前向遍历，基于BFS从根节点开始遍历；</li>
-<li>数据流传递公式：对于J-edge y→z，那么对于所有满足“x dom
-y且x.depth≥z.depth”节点x，满足：<span
-class="math inline">\(DF^+(x)=DF^+(x)\cup DF^+(z)\cup
-\{z\}\)</span>；</li>
-<li>不一致条件（即需要继续数据流分析的条件）：对于J-edge
-y→z，y不满足<span class="math inline">\(DF^+(z) \subset
-DF^+(y)\)</span>，则y为不一致的。</li>
-</ol>
-<p>基于上述这些条件，可以得到数据流分析算法。外部函数重复调用该函数，直到该函数返回值为false时停止。结果将会得到每一个节点x的DF<sup>+</sup>(x)集合。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-24-12-15-24.png" srcset="/img/loading.gif" lazyload
-alt="数据流分析的DF+构造方法" />
-<figcaption
-aria-hidden="true">数据流分析的DF<sup>+</sup>构造方法</figcaption>
-</figure>
-<p>同样以之前给出的数据流图为例，接下来对算法执行过程进行介绍。</p>
-<ol type="1">
-<li>当从顶部开始遍历时，碰到的第一个J-edge为7→2，这使得DF<sup>+</sup>(7)，DF<sup>+</sup>(6)，DF<sup>+</sup>(3)，DF<sup>+</sup>(2)全部更新为{2}。更新完毕后检查<span
-class="math inline">\(DF^+(2) \subset DF^+(7)\)</span>，发现满足；</li>
-<li>接下来可能被遍历到的J-edge有5条，假设从5→6开始，则更新<span
-class="math inline">\(DF^+(5)=DF^+(5)\cup DF^+(6)\cup
-\{6\}={2,6}\)</span>，且<span class="math inline">\(DF^+(6) \subset
-DF^+(5)\)</span>成立；</li>
-<li>接着是剩下的边，同样按这个方式进行遍历，其中遍历6→5时，会出现不一致条件，这样就需要在本次遍历完毕之后，再进行一次遍历。最后就可以得到所有点的DF<sup>+</sup>集合。</li>
-</ol>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-13-52-37.png" srcset="/img/loading.gif" lazyload
-alt="DJ-graph的例子" />
-<figcaption aria-hidden="true">DJ-graph的例子</figcaption>
-</figure>
-<p>当得到了单个节点x的DF<sup>+</sup>集合后，那么集合S的DF<sup>+</sup>(S)即为S中所有元素x的DF<sup>+</sup>(x)的并集。</p>
-<h2 id="基于loop-nesting-forest的df集合构造方法">基于Loop Nesting
-Forest的DF<sup>+</sup>集合构造方法</h2>
-<h3 id="在无环图下的df构造算法">在无环图下的DF<sup>+</sup>构造算法</h3>
-<p>首先，在控制流图中存在循环结构，如果在CFG的深度优先生成树中有一条指向其祖先的边m→n，则m和n之间的子图构成了一个循环，且n被称为循环头。如果所有循环只有一个入口，那么这个控制流图被称为可规约的。下图中图(a)为可规约的，图(b)为不可规约的。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-22-46-49.png" srcset="/img/loading.gif" lazyload
-alt="可规约循环和不可规约循环" />
-<figcaption aria-hidden="true">可规约循环和不可规约循环</figcaption>
-</figure>
-<p>对于可规约图，我们可以将所有的循环部分转换成一个节点，并将循环头和循环内部节点提取出来，构成循环森林（Loop
-Nesting Forest）。下图展示了一个例子：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-22-52-11.png" srcset="/img/loading.gif" lazyload
-alt="控制流图及其循环森林示例" />
-<figcaption aria-hidden="true">控制流图及其循环森林示例</figcaption>
-</figure>
-<p>使用循环森林的目的是：如果一个循环包含一个def，那么它的循环头也属于DF<sup>+</sup>。此外，当控制流图中两个不同的节点存在到同一个节点的路径，且这两个路径上没有其他的定义，那么这个节点属于DF<sup>+</sup>。在这两个规律基础上，我们提出一个应用于无循环的“无环图”的算法，并在结果上添加循环部分，得到最终DF<sup>+</sup>结果。</p>
-<p>首先，对于无环图中的定义集合S，DF<sup>+</sup>(S)的计算过程如下：对控制流图使用拓扑顺序，利用前向数据流分析对满足两个不同节点到达同一个节点的情况进行分析，如果有多个节点可达节点x，则添加节点x到DF<sup>+</sup>(S)。例如上图中，节点6和节点8的即被多个定义到达，因此他们将会被加入至DF<sup>+</sup>(S)。该过程算法如下所示，其中UniqueReachingDef(v)记录了能到达节点v的唯一一个定义所在的基本块：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-23-23-56-32.png" srcset="/img/loading.gif" lazyload
-alt="无环图中计算DF+的算法" />
-<figcaption
-aria-hidden="true">无环图中计算DF<sup>+</sup>的算法</figcaption>
-</figure>
-<h3 id="将算法扩展至可规约图">将算法扩展至可规约图</h3>
-<p>设HLC(v)为基本块v所在循环的循环头，那么对于集合S，存在公式如下。其中HLC(S)为S中所有节点所在循环头的集合，<span
-class="math inline">\(DF^+_{fwd}\)</span>为在无环图情况下求到的DF<sup>+</sup>集合。</p>
-<p><span class="math display">\[
-DF^+(S)=HLC(S) \cup DF^+_{fwd}(S \cup HLC(S))
-\]</span></p>
-<p>在之前的例子中，HLC({4,5,7,12})={2}，在无环图下得到的<span
-class="math inline">\(DF^+_{fwd}(\{2,4,5,7,12\})=\{6,8\}\)</span>，最终得到DF<sup>+</sup>(S)={2,6,8}。</p>
-<h3 id="将算法扩展至不可规约图">将算法扩展至不可规约图</h3>
-<p>不可规约图虽然在写代码的时候不容易出现，但是在优化的过程中经常出现。对于下图中的不可规约图，首先同样构建出他的循环森林。可以看到循环森林中循环头包括了两个节点，对应循环中的两个入口。在对不可规约图进行分析时，在无环图的基础上，添加一个辅助节点θ，我们连接所有循环头节点的前驱（u和s），并连接到循环头节点（v和w），最终得到图(d)。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-5-2022-04-24-09-44-43.png" srcset="/img/loading.gif" lazyload
-alt="不可规约图的变换策略" />
-<figcaption aria-hidden="true">不可规约图的变换策略</figcaption>
-</figure>
-<p>在这样的基础上，可以通过上一节的算法先计算无环图下的DF<sup>+</sup>，接着利用循环森林，计算最终的DF<sup>+</sup>集合。</p>
-<h2 id="总结">总结</h2>
-<p>尽管所有这些算法都比原始算法更好，但由于这些算法无法在同一个编译器框架中使用，因此很难分出最优最劣。在实际中，虽然构造整个DF+集在经典构造算法中看起来时间复杂度很高，但它的代价实际上没有那么高，因为我们需要为很多变量进行插入Φ函数的计算，这些计算之间的结果是可以复用的。此外，我们还可以用Reconstruction的过程代替重新的构造，避免构造时的计算成本。还要注意的是，在SSA构造过程中，重命名变量过程通常需要花费更多的时间。</p>
-<p>在LLVM中的SSA有更好的优化方式，该部分参考文章<a
-target="_blank" rel="noopener" href="https://blog.csdn.net/qq_29674357/article/details/78731713">《LLVM
-SSA 介绍》</a>
-。LLVM并不会一开始就将整个程序转化成SSA的形式，他将变量分为了两个部分：虚拟寄存器和内存。其中虚拟寄存器满足SSA，而内存则使用alloca/load/store的方法，使得对变量的读写变成了对某个地址的操作。这个技术被称为“alloca+mem2reg”技术，在优化的过程中采用alloca的非SSA形式，避免了繁琐的SSA构造和重构等过程。而在需要将部分内存访问转化为寄存器访问时，则利用mem2reg将程序的IR转化成SSA形式，这样子大大提高了编译的效率。</p>
 
               
             </div>
@@ -447,18 +477,12 @@ SSA 介绍》</a>
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/04/24/ssa-book-6/" title="《SSA Book》- 6. 基于SSA的Information Propagating">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">《SSA Book》- 6. 基于SSA的Information Propagating</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
                     
-                      <a href="/2022/04/16/ssa-book-4/" title="《SSA Book》- 4. SSA的基本析构算法">
-                        <span class="hidden-mobile">《SSA Book》- 4. SSA的基本析构算法</span>
+                      <a href="/2022/04/28/ssa-book-7/" title="《SSA Book》- 7. 基于SSA的Liveness Analysis">
+                        <span class="hidden-mobile">《SSA Book》- 7. 基于SSA的Liveness Analysis</span>
                         <span class="visible-mobile">下一篇</span>
                         <i class="iconfont icon-arrowright"></i>
                       </a>

@@ -16,22 +16,22 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 6. 基于SSA的数据流传播 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常">
+    <meta name="description" content="《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够">
 <meta property="og:type" content="article">
-<meta property="og:title" content="《SSA Book》- 6. 基于SSA的数据流传播">
+<meta property="og:title" content="《SSA Book》- 6. 基于SSA的Information Propagating">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/24/ssa-book-6/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 6. 基于SSA的数据流传播 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常">
+<meta property="og:description" content="《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-04-24T14:13:54.000Z">
-<meta property="article:modified_time" content="2022-04-25T14:29:24.784Z">
+<meta property="article:modified_time" content="2022-05-01T07:53:41.613Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
   
   
-  <title>《SSA Book》- 6. 基于SSA的数据流传播 - GQRelic的Blog</title>
+  <title>《SSA Book》- 6. 基于SSA的Information Propagating - GQRelic的Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -176,7 +176,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="《SSA Book》- 6. 基于SSA的数据流传播"></span>
+            <span id="subtitle" data-typed-text="《SSA Book》- 6. 基于SSA的Information Propagating"></span>
           
         </div>
 
@@ -247,12 +247,12 @@
         <div id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">《SSA Book》- 6. 基于SSA的数据流传播</h1>
+            <h1 style="display: none">《SSA Book》- 6. 基于SSA的Information Propagating</h1>
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--6.-基于ssa的数据流传播">《SSA Book》- 6.
-基于SSA的数据流传播</h1>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--6.-基于ssa的information-propagating">《SSA Book》- 6.
+基于SSA的Information Propagating</h1>
 <p>从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。</p>
 <p>本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow
 Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常数传播而永远不会发生的分支，同时速度还很快！本章的算法不止能被运用于稀有条件常数传播，只要修改数据流传播函数，对于其他的前向数据流分析同样适用。</p>
@@ -363,9 +363,9 @@ start节点的出边，而 列表SSAWorkList初始化为空。</p>
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/04/28/ssa-book-7/" title="《SSA Book》- 7. 基于SSA的活跃变量分析">
+                      <a href="/2022/04/28/ssa-book-7/" title="《SSA Book》- 7. 基于SSA的Liveness Analysis">
                         <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">《SSA Book》- 7. 基于SSA的活跃变量分析</span>
+                        <span class="hidden-mobile">《SSA Book》- 7. 基于SSA的Liveness Analysis</span>
                         <span class="visible-mobile">上一篇</span>
                       </a>
                     
