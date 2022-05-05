@@ -16,19 +16,28 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简">
+    <meta name="description" content="《SSA Book》- 4. SSA的基本析构算法本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简单的指令替">
 <meta property="og:type" content="article">
 <meta property="og:title" content="《SSA Book》- 4. SSA的基本析构算法">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/16/ssa-book-4/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简">
+<meta property="og:description" content="《SSA Book》- 4. SSA的基本析构算法本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简单的指令替">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-16-23-06-59.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-21-04-24.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-00-53.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-22-57-26.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-23-23-16.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-11-25.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-23-23-40.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-18-21-17-58.png">
 <meta property="article:published_time" content="2022-04-16T13:37:14.000Z">
 <meta property="article:modified_time" content="2022-04-23T04:49:58.077Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-16-23-06-59.png">
   
   
   <title>《SSA Book》- 4. SSA的基本析构算法 - GQRelic的Blog</title>
@@ -199,7 +208,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          2.1k 字
+          2k 字
         
       </span>
     
@@ -251,101 +260,41 @@
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--4.-ssa的基本析构算法">《SSA Book》- 4.
-SSA的基本析构算法</h1>
-<p>本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-4-SSA的基本析构算法"><a href="#《SSA-Book》-4-SSA的基本析构算法" class="headerlink" title="《SSA Book》- 4. SSA的基本析构算法"></a>《SSA Book》- 4. SSA的基本析构算法</h1><p>本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。</p>
 <p>SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。</p>
 <p>之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简单的指令替换，就可以完成SSA析构。析构的方法很简单，只需要在Φ函数的两个前驱基本块的末端增加两个复制语句。下图即为一个析构的例子：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-16-23-06-59.png" srcset="/img/loading.gif" lazyload
-alt="面向C-SSA中Φ语句的析构方式" />
-<figcaption aria-hidden="true">面向C-SSA中Φ语句的析构方式</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-16-23-06-59.png" srcset="/img/loading.gif" lazyload alt="面向C-SSA中Φ语句的析构方式"></p>
 <p>但是，针对上述过程存在一些问题：</p>
-<ol type="1">
+<ol>
 <li>为什么有了live-ranges的互相重叠，就不能直接转换了呢？</li>
 <li>如何将T-SSA转换为C-SSA呢？</li>
 <li>基本快入口处的多个Φ函数是并行语句，转换后的复制语句是串行执行，如何进行转换呢？</li>
 </ol>
-<h2 id="朴素析构方法带来的问题">朴素析构方法带来的问题</h2>
-<p>在对C-SSA的定义中提到了Φ函数对应的Φ-web。首先，如果x和y同时出现在同一个Φ函数中，x和y即为Φ-related的。所有被related到一起的变量构成了一个Φ-web。下面的算法利用并查集即可发现所有存在的Φ-web，union是并查集数据结构中的函数。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-21-04-24.png" srcset="/img/loading.gif" lazyload
-alt="Φ-web发掘算法" />
-<figcaption aria-hidden="true">Φ-web发掘算法</figcaption>
-</figure>
-<p>接下来的这一部分困扰了我很久，我阅读原文理解的是：检测到Φ-web之后，如果存在Φ-web中活跃区间的冲突，则存在关键边上的问题，可能会导致lost-copy
-problem和swap
-problem，因此不能进行直接的Φ转换。但是，我实在没能理解为什么有活跃区间冲突后，就会导致这两个问题。</p>
-<p>于是，我直接参考了论文《Practical Improvements to the Construction
-and Destruction of Static Single Assignment
-Form》。论文里面的逻辑关系感觉更容易理解。</p>
-<h3 id="关键边critical-edges">关键边（Critical Edges）</h3>
-<p>首先介绍关键边。关键边定义为具有多个后继块和具有多个前继块之间的边。图中的红色边即为关键边。当对Φ函数使用上面的方法进行分割后，如果程序沿着不通往φ函数的路径执行，那么不该发生的复制就会发生。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-00-53.png" srcset="/img/loading.gif" lazyload
-alt="关键边以及析构Φ存在的问题" />
-<figcaption aria-hidden="true">关键边以及析构Φ存在的问题</figcaption>
-</figure>
-<p>为了解决这个现象，就需要将所有关键边分割开，然后再对Φ函数进行普通的替换。对于所有存在多个前驱的基本块B，判断每一个前驱是否具有其他的后继。如果Bi存在其他的后继，那么就在Bi和B之间添加一个基本快Bi'。遍历完毕后，再向新添加的基本块Bi'中增加赋值ai'=ai，并修改基本块B开头处的Φ语句中的ai为ai'。算法如下所示：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-22-57-26.png" srcset="/img/loading.gif" lazyload
-alt="使T-SSA变成C-SSA的关键边分割算法" />
-<figcaption
-aria-hidden="true">使T-SSA变成C-SSA的关键边分割算法</figcaption>
-</figure>
+<h2 id="朴素析构方法带来的问题"><a href="#朴素析构方法带来的问题" class="headerlink" title="朴素析构方法带来的问题"></a>朴素析构方法带来的问题</h2><p>在对C-SSA的定义中提到了Φ函数对应的Φ-web。首先，如果x和y同时出现在同一个Φ函数中，x和y即为Φ-related的。所有被related到一起的变量构成了一个Φ-web。下面的算法利用并查集即可发现所有存在的Φ-web，union是并查集数据结构中的函数。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-21-04-24.png" srcset="/img/loading.gif" lazyload alt="Φ-web发掘算法"></p>
+<p>接下来的这一部分困扰了我很久，我阅读原文理解的是：检测到Φ-web之后，如果存在Φ-web中活跃区间的冲突，则存在关键边上的问题，可能会导致lost-copy problem和swap problem，因此不能进行直接的Φ转换。但是，我实在没能理解为什么有活跃区间冲突后，就会导致这两个问题。</p>
+<p>于是，我直接参考了论文《Practical Improvements to the Construction and Destruction of Static Single Assignment Form》。论文里面的逻辑关系感觉更容易理解。</p>
+<h3 id="关键边（Critical-Edges）"><a href="#关键边（Critical-Edges）" class="headerlink" title="关键边（Critical Edges）"></a>关键边（Critical Edges）</h3><p>首先介绍关键边。关键边定义为具有多个后继块和具有多个前继块之间的边。图中的红色边即为关键边。当对Φ函数使用上面的方法进行分割后，如果程序沿着不通往φ函数的路径执行，那么不该发生的复制就会发生。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-00-53.png" srcset="/img/loading.gif" lazyload alt="关键边以及析构Φ存在的问题"></p>
+<p>为了解决这个现象，就需要将所有关键边分割开，然后再对Φ函数进行普通的替换。对于所有存在多个前驱的基本块B，判断每一个前驱是否具有其他的后继。如果Bi存在其他的后继，那么就在Bi和B之间添加一个基本快Bi’。遍历完毕后，再向新添加的基本块Bi’中增加赋值ai’=ai，并修改基本块B开头处的Φ语句中的ai为ai’。算法如下所示：</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-22-57-26.png" srcset="/img/loading.gif" lazyload alt="使T-SSA变成C-SSA的关键边分割算法"></p>
 <p>下图展示了变换的例子。添加基本块之后，之前提到的关键边带来的问题被消除了。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-23-23-16.png" srcset="/img/loading.gif" lazyload
-alt="关键边分割实例" />
-<figcaption aria-hidden="true">关键边分割实例</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-17-23-23-16.png" srcset="/img/loading.gif" lazyload alt="关键边分割实例"></p>
 <p>上面最简单的关键边分割算法有很多问题：</p>
-<ol type="1">
+<ol>
 <li>因为架构限制，异常处理代码等问题，编译器可能不允许分割给定的边；</li>
 <li>添加大量复制操作可能会低效。虽然可以在后面的寄存器分配中进行合并（第22章中提到的合并启发式算法可以有效地移除这些副本），但是带着这么多复制进行编译也是不合适的。</li>
 </ol>
 <p>第21章会提出方法解决上面的问题。</p>
-<h3 id="lost-copy-problem">Lost-Copy Problem</h3>
-<p>关键边带来的复制语句的错误执行，在一定情况下会造成错误。典型的一个错误为：当进行Copy
-folding优化之后，且存在一个或多个后向关键边时，将会发生“Lost-Copy”
-Problem。</p>
+<h3 id="Lost-Copy-Problem"><a href="#Lost-Copy-Problem" class="headerlink" title="Lost-Copy Problem"></a>Lost-Copy Problem</h3><p>关键边带来的复制语句的错误执行，在一定情况下会造成错误。典型的一个错误为：当进行Copy folding优化之后，且存在一个或多个后向关键边时，将会发生“Lost-Copy” Problem。</p>
 <p>下图即展示了“Lost-Copy”问题的例子。图(a)为原始的C-SSA。在进行复制传播之后，图(b)中变量y由x3进行了替代。图(c)显示了使用朴素算法将φ函数替换为复制语句的结果。显然，代码的结果发生了变化。而图(d)使用之前提到的关键边切割方法来解决问题。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-11-25.png" srcset="/img/loading.gif" lazyload
-alt="导致Lost-Copy Problem的代码示例" />
-<figcaption aria-hidden="true">导致Lost-Copy
-Problem的代码示例</figcaption>
-</figure>
-<p>造成这一切原因的即为Copy
-folding扩大了原先x3的活跃范围，这个活跃范围甚至覆盖了对x2的赋值。编译器在转换Φ函数的时候，必须要考虑插入的复制语句，对于非Φ函数的语句的后继基本块仍然有效。</p>
-<h3 id="swap-problem">Swap Problem</h3>
-<p>此外，同样是Copy
-folding导致的另一个问题。下图给出了一个案例。图(a)为原始C-SSA，图(b)为进行了常量折叠之后的代码。图(c)显示了使用朴素算法将φ函数替换为复制语句的结果。因为Φ语句原来是并行执行的，而这样的直接转换破坏了并行特性，导致了a3与b3之间的互相干涉，使得结果错误。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-23-23-40.png" srcset="/img/loading.gif" lazyload
-alt="导致Swap Problem的代码示例" />
-<figcaption aria-hidden="true">导致Swap Problem的代码示例</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-22-11-25.png" srcset="/img/loading.gif" lazyload alt="导致Lost-Copy Problem的代码示例"></p>
+<p>造成这一切原因的即为Copy folding扩大了原先x3的活跃范围，这个活跃范围甚至覆盖了对x2的赋值。编译器在转换Φ函数的时候，必须要考虑插入的复制语句，对于非Φ函数的语句的后继基本块仍然有效。</p>
+<h3 id="Swap-Problem"><a href="#Swap-Problem" class="headerlink" title="Swap Problem"></a>Swap Problem</h3><p>此外，同样是Copy folding导致的另一个问题。下图给出了一个案例。图(a)为原始C-SSA，图(b)为进行了常量折叠之后的代码。图(c)显示了使用朴素算法将φ函数替换为复制语句的结果。因为Φ语句原来是并行执行的，而这样的直接转换破坏了并行特性，导致了a3与b3之间的互相干涉，使得结果错误。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-19-23-23-40.png" srcset="/img/loading.gif" lazyload alt="导致Swap Problem的代码示例"></p>
 <p>基本块开头的多个Φ函数在进行析构的过程中，将会为前驱添加多个复制语句。如果其中一个复制语句的结果，是另一个复制语句的操作数，那么复制语句的不同顺序则会对结果产生影响。下面的算法会自动保存上述复制语句的结果，以实现并行的效果。使用算法后可以得到上图中的图(d)，析构结果再次正确。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-18-21-17-58.png" srcset="/img/loading.gif" lazyload
-alt="用顺序复制操作的序列替换并行Φ函数" />
-<figcaption
-aria-hidden="true">用顺序复制操作的序列替换并行Φ函数</figcaption>
-</figure>
-<h2 id="对朴素析构算法的总结">对朴素析构算法的总结</h2>
-<p>综上所述，进行了优化算法之后得到的T-SSA，存在Φ-web的变量干涉的现象。一旦存在变量干涉，则可能会导致如Lost-Copy
-Problem和Swap
-Problem这样的错误。针对这些错误，本章目前只讲了解决这些问题的最朴素方法（切割关键边，并行转串行语句的方法），后续会有更实际高效的析构方法。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-4-2022-04-18-21-17-58.png" srcset="/img/loading.gif" lazyload alt="用顺序复制操作的序列替换并行Φ函数"></p>
+<h2 id="对朴素析构算法的总结"><a href="#对朴素析构算法的总结" class="headerlink" title="对朴素析构算法的总结"></a>对朴素析构算法的总结</h2><p>综上所述，进行了优化算法之后得到的T-SSA，存在Φ-web的变量干涉的现象。一旦存在变量干涉，则可能会导致如Lost-Copy Problem和Swap Problem这样的错误。针对这些错误，本章目前只讲了解决这些问题的最朴素方法（切割关键边，并行转串行语句的方法），后续会有更实际高效的析构方法。</p>
 
               
             </div>

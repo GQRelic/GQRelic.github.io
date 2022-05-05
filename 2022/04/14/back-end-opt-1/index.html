@@ -16,19 +16,22 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="编译后端优化：If-Conversion算法与LLVM实现 在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整">
+    <meta name="description" content="编译后端优化：If-Conversion算法与LLVM实现在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整。">
 <meta property="og:type" content="article">
 <meta property="og:title" content="编译后端优化：If-Conversion算法与LLVM实现">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/14/back-end-opt-1/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="编译后端优化：If-Conversion算法与LLVM实现 在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整">
+<meta property="og:description" content="编译后端优化：If-Conversion算法与LLVM实现在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整。">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-16-13-41-36.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-15-23-05-00.png">
 <meta property="article:published_time" content="2022-04-14T14:31:09.000Z">
 <meta property="article:modified_time" content="2022-04-24T05:22:56.640Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="LLVM">
 <meta property="article:tag" content="编译原理">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-16-13-41-36.png">
   
   
   <title>编译后端优化：If-Conversion算法与LLVM实现 - GQRelic的Blog</title>
@@ -251,198 +254,180 @@
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1
-id="编译后端优化if-conversion算法与llvm实现">编译后端优化：If-Conversion算法与LLVM实现</h1>
-<p>在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整。</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="编译后端优化：If-Conversion算法与LLVM实现"><a href="#编译后端优化：If-Conversion算法与LLVM实现" class="headerlink" title="编译后端优化：If-Conversion算法与LLVM实现"></a>编译后端优化：If-Conversion算法与LLVM实现</h1><p>在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整。</p>
 <p>可能由于自身本领不够硬，看大佬的文章时理解得还是不太到位。因此我基于自己在实现Pass过程中的理解，简述一下这个算法，并对算法的某些部分在LLVM上的实现进行介绍，也算自己做一个笔记了。</p>
-<p>附上大佬的文章地址：<a
-target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/157421035">针对GPU单指令多数据流的编译优化算法</a></p>
-<h2 id="算法总览">算法总览</h2>
-<p>使用Pass前后的数据流图如下图所示，稍微对具体内容做了一下屏蔽：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-16-13-41-36.png" srcset="/img/loading.gif" lazyload
-alt="Pass前后的数据流图对比" />
-<figcaption aria-hidden="true">Pass前后的数据流图对比</figcaption>
-</figure>
+<p>附上大佬的文章地址：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/157421035">针对GPU单指令多数据流的编译优化算法</a></p>
+<h2 id="算法总览"><a href="#算法总览" class="headerlink" title="算法总览"></a>算法总览</h2><p>使用Pass前后的数据流图如下图所示，稍微对具体内容做了一下屏蔽：</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-16-13-41-36.png" srcset="/img/loading.gif" lazyload alt="Pass前后的数据流图对比"></p>
 <p>该Pass地实现整体可分为3个步骤，其中前2个步骤属于If-Conversion算法部分：</p>
-<ol type="1">
+<ol>
 <li>计算控制依赖（Control Dependence，CD）；</li>
 <li>谓词分析：计算每一个基本块被执行的条件，并将被执行的条件与实际条件变量绑定；</li>
 <li>代码生成：基于分析结果生成新的代码。</li>
 </ol>
-<h2 id="step-1.-计算控制依赖">Step 1. 计算控制依赖</h2>
-<h3 id="控制依赖定义">控制依赖定义</h3>
-<p>首先，算法需要计算基本块之间的控制依赖关系。对于两个基本块X和Y，Y是X的控制依赖的条件是：</p>
-<ol type="1">
+<h2 id="Step-1-计算控制依赖"><a href="#Step-1-计算控制依赖" class="headerlink" title="Step 1. 计算控制依赖"></a>Step 1. 计算控制依赖</h2><h3 id="控制依赖定义"><a href="#控制依赖定义" class="headerlink" title="控制依赖定义"></a>控制依赖定义</h3><p>首先，算法需要计算基本块之间的控制依赖关系。对于两个基本块X和Y，Y是X的控制依赖的条件是：</p>
+<ol>
 <li>从X到Y存在一条有向路径P，P中除X以外的任意基本块Z都被Y后继支配；</li>
 <li>X不被Y后继支配。</li>
 </ol>
-<p>其中，后继支配的定义和支配类似，如果从节点y到出口节点的每一条路径都经过节点x，则x为y的后继支配节点，记作x
-pdom y。同样的，对于x pdom y，不存在节点z，使得x pdom z 且 z pdom y。
-则x为y的直接后继支配节点，记作x ipdom y。</p>
+<p>其中，后继支配的定义和支配类似，如果从节点y到出口节点的每一条路径都经过节点x，则x为y的后继支配节点，记作x pdom y。同样的，对于x pdom y，不存在节点z，使得x pdom z 且 z pdom y。 则x为y的直接后继支配节点，记作x ipdom y。</p>
 <p>对控制依赖的概念进行理解：当控制依赖的条件满足时，那么通过X可以跳转到多个路径上。如果能够跳转到路径P，那么所有到出口的路径一定会经过基本块Y，即基本块Y一定会被执行；如果跳转到其他路径，则Y就不一定被执行了。</p>
 <p>那么，对于一个节点Y，如果我们能找到该节点控制依赖所有的节点集合，并且记录下这些控制依赖中的集合跳转到“必定执行Y”的路径的条件，那么就可以得到决定基本块Y是否被执行的充要条件。</p>
 <p>以下图为例，以其中的节点6为待分析的基本块节点。根据控制依赖的条件2，首先排除掉基本块2、4、5、7。节点1和3同时满足条件1和2，因此节点6的控制依赖集合为{1,3}。其中当控制依赖集合跳转到标记为绿色的两条路径时，基本块6必将被执行。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-15-23-05-00.png" srcset="/img/loading.gif" lazyload
-alt="控制流图和其对应的控制依赖关系" />
-<figcaption
-aria-hidden="true">控制流图和其对应的控制依赖关系</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/back-end-opt-1-2022-04-15-23-05-00.png" srcset="/img/loading.gif" lazyload alt="控制流图和其对应的控制依赖关系"></p>
 <p>对基本块分支的不同选项进行编号，那么每个基本块对应的控制依赖可以用更具体的编号表示，例如基本块3的执行条件对应编号即为{-1}。</p>
-<h3 id="计算控制依赖">计算控制依赖</h3>
-<p>首先需要计算后置支配关系。在LLVM中，可以利用PostDominatorTree直接获得后置支配树PostDT，并通过PostDT-&gt;dominates(I,J)对基本块之间的后置支配关系进行判断。</p>
+<h3 id="计算控制依赖"><a href="#计算控制依赖" class="headerlink" title="计算控制依赖"></a>计算控制依赖</h3><p>首先需要计算后置支配关系。在LLVM中，可以利用PostDominatorTree直接获得后置支配树PostDT，并通过PostDT-&gt;dominates(I,J)对基本块之间的后置支配关系进行判断。</p>
 <p>其次，需要计算每个节点的直接后置支配节点。这个我在LLVM中没有找到对应的函数，因此直接使用了下面的算法。后继支配节点=直接后继支配节点+直接后继支配节点的后继支配节点，因此只需要删除所有“后继支配其他节点”的节点，剩下的即为直接后继支配节点。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-keyword">for</span> CFG中的每一个节点n &#123;<br>    pdom(n) -= n;   <span class="hljs-comment">// 删除节点自己</span><br>&#125;<br><span class="hljs-keyword">for</span> CFG中的每一个节点n &#123;<br>    <span class="hljs-keyword">for</span> <span class="hljs-title function_">pdom</span><span class="hljs-params">(n)</span>中的每一个节点s &#123;<br>        <span class="hljs-keyword">for</span> <span class="hljs-title function_">pdom</span><span class="hljs-params">(n)</span>中的除去s的每一个节点t &#123;<br>            <span class="hljs-keyword">if</span> (t pdom s)   <span class="hljs-comment">// 删除“后继支配其他节点”的节点</span><br>                pdom(n) -= t;<br>        &#125;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
 <p>下面的表格展示了每个节点的后继支配和直接后继支配的结果。</p>
-<table style="width:100%;">
-
+<div class="table-container">
+<table>
 <thead>
-<tr class="header">
-<th style="text-align: center;"></th>
-<th style="text-align: center;">S</th>
-<th style="text-align: center;">1</th>
-<th style="text-align: center;">2</th>
-<th style="text-align: center;">3</th>
-<th style="text-align: center;">4</th>
-<th style="text-align: center;">5</th>
-<th style="text-align: center;">6</th>
-<th style="text-align: center;">7</th>
-<th style="text-align: center;">E</th>
+<tr>
+<th style="text-align:center"></th>
+<th style="text-align:center">S</th>
+<th style="text-align:center">1</th>
+<th style="text-align:center">2</th>
+<th style="text-align:center">3</th>
+<th style="text-align:center">4</th>
+<th style="text-align:center">5</th>
+<th style="text-align:center">6</th>
+<th style="text-align:center">7</th>
+<th style="text-align:center">E</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td style="text-align: center;">pdom</td>
-<td style="text-align: center;">{E,7,1,S}</td>
-<td style="text-align: center;">{E,7,1}</td>
-<td style="text-align: center;">{E,7,6,2}</td>
-<td style="text-align: center;">{E,7,3}</td>
-<td style="text-align: center;">{E,7,6,4}</td>
-<td style="text-align: center;">{E,7,6,5}</td>
-<td style="text-align: center;">{E,7,6}</td>
-<td style="text-align: center;">{E,7}</td>
-<td style="text-align: center;">{E}</td>
+<tr>
+<td style="text-align:center">pdom</td>
+<td style="text-align:center">{E,7,1,S}</td>
+<td style="text-align:center">{E,7,1}</td>
+<td style="text-align:center">{E,7,6,2}</td>
+<td style="text-align:center">{E,7,3}</td>
+<td style="text-align:center">{E,7,6,4}</td>
+<td style="text-align:center">{E,7,6,5}</td>
+<td style="text-align:center">{E,7,6}</td>
+<td style="text-align:center">{E,7}</td>
+<td style="text-align:center">{E}</td>
 </tr>
-<tr class="even">
-<td style="text-align: center;">ipdom</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">6</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">6</td>
-<td style="text-align: center;">6</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">7</td>
-<td style="text-align: center;">{}</td>
+<tr>
+<td style="text-align:center">ipdom</td>
+<td style="text-align:center">1</td>
+<td style="text-align:center">7</td>
+<td style="text-align:center">6</td>
+<td style="text-align:center">7</td>
+<td style="text-align:center">6</td>
+<td style="text-align:center">6</td>
+<td style="text-align:center">7</td>
+<td style="text-align:center">7</td>
+<td style="text-align:center">{}</td>
 </tr>
 </tbody>
 </table>
+</div>
 <p>得到每个节点的直接后继支配后，即可以计算控制依赖关系，可以直接通过控制依赖的两个条件得到，算法如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs C"><span class="hljs-keyword">for</span> CFG中的边[x,y,label] &#123;  <span class="hljs-comment">// label为true表示X为true时跳转的边</span><br>    <span class="hljs-keyword">if</span> (y pdom x)<br>        <span class="hljs-keyword">continue</span>;   <span class="hljs-comment">// X不能被Y后继支配</span><br>    t = y;<br>    <span class="hljs-keyword">while</span>(t != ipdom(x)) &#123;<br>        CD(t) += x;<br>        t = ipdom(t);<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
 <p>以上图例子中的控制流图为例，当分析边[1,2,true]时，t将依次遍历2，6，7。除了节点7之外的其他节点均满足“从1到这个节点路径上的所有节点都被该节点后继支配”。因此节点1将会被添加至CD(2)和CD(6)之中。其他边的计算方法同理，最终得到所有节点的控制依赖如下表所示，没有编号的即为一定会被执行的基本块：</p>
+<div class="table-container">
 <table>
 <thead>
-<tr class="header">
-<th style="text-align: center;">n</th>
-<th style="text-align: center;">1</th>
-<th style="text-align: center;">2</th>
-<th style="text-align: center;">3</th>
-<th style="text-align: center;">4</th>
-<th style="text-align: center;">5</th>
-<th style="text-align: center;">6</th>
-<th style="text-align: center;">7</th>
+<tr>
+<th style="text-align:center">n</th>
+<th style="text-align:center">1</th>
+<th style="text-align:center">2</th>
+<th style="text-align:center">3</th>
+<th style="text-align:center">4</th>
+<th style="text-align:center">5</th>
+<th style="text-align:center">6</th>
+<th style="text-align:center">7</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td style="text-align: center;">CD(n)</td>
-<td style="text-align: center;">{}</td>
-<td style="text-align: center;">{1}</td>
-<td style="text-align: center;">{-1}</td>
-<td style="text-align: center;">{2}</td>
-<td style="text-align: center;">{-2,3}</td>
-<td style="text-align: center;">{1,3}</td>
-<td style="text-align: center;">{}</td>
+<tr>
+<td style="text-align:center">CD(n)</td>
+<td style="text-align:center">{}</td>
+<td style="text-align:center">{1}</td>
+<td style="text-align:center">{-1}</td>
+<td style="text-align:center">{2}</td>
+<td style="text-align:center">{-2,3}</td>
+<td style="text-align:center">{1,3}</td>
+<td style="text-align:center">{}</td>
 </tr>
 </tbody>
 </table>
-<h2 id="step-2.-谓词分析">Step 2. 谓词分析</h2>
-<p>首先，上述分析结果存在一个问题。比如对于基本块4，他的控制依赖集合是{2}，但是2是否执行取决于它的控制依赖集合{1}，即需要将基本块4的执行条件更新为{1,2}。这一步更新只需要使用简单的数据流方法更新即可。为了区别于控制依赖，对于基本块n，更新后的执行条件我们用K(n)表示，最终得到的结果为：</p>
+</div>
+<h2 id="Step-2-谓词分析"><a href="#Step-2-谓词分析" class="headerlink" title="Step 2. 谓词分析"></a>Step 2. 谓词分析</h2><p>首先，上述分析结果存在一个问题。比如对于基本块4，他的控制依赖集合是{2}，但是2是否执行取决于它的控制依赖集合{1}，即需要将基本块4的执行条件更新为{1,2}。这一步更新只需要使用简单的数据流方法更新即可。为了区别于控制依赖，对于基本块n，更新后的执行条件我们用K(n)表示，最终得到的结果为：</p>
+<div class="table-container">
 <table>
 <thead>
-<tr class="header">
-<th style="text-align: center;">n</th>
-<th style="text-align: center;">1</th>
-<th style="text-align: center;">2</th>
-<th style="text-align: center;">3</th>
-<th style="text-align: center;">4</th>
-<th style="text-align: center;">5</th>
-<th style="text-align: center;">6</th>
-<th style="text-align: center;">7</th>
+<tr>
+<th style="text-align:center">n</th>
+<th style="text-align:center">1</th>
+<th style="text-align:center">2</th>
+<th style="text-align:center">3</th>
+<th style="text-align:center">4</th>
+<th style="text-align:center">5</th>
+<th style="text-align:center">6</th>
+<th style="text-align:center">7</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td style="text-align: center;">K(n)</td>
-<td style="text-align: center;">{}</td>
-<td style="text-align: center;">{1}</td>
-<td style="text-align: center;">{-1}</td>
-<td style="text-align: center;">{1,2}</td>
-<td style="text-align: center;">{-2,3}</td>
-<td style="text-align: center;">{1,3}</td>
-<td style="text-align: center;">{}</td>
+<tr>
+<td style="text-align:center">K(n)</td>
+<td style="text-align:center">{}</td>
+<td style="text-align:center">{1}</td>
+<td style="text-align:center">{-1}</td>
+<td style="text-align:center">{1,2}</td>
+<td style="text-align:center">{-2,3}</td>
+<td style="text-align:center">{1,3}</td>
+<td style="text-align:center">{}</td>
 </tr>
 </tbody>
 </table>
+</div>
 <p>其次，这些基本块的控制依赖集合通常有多个元素，需要将多个元素的条件整合到同一个变量中，并利用该变量作为是否执行该基本快操作的前提。借用GPU里面的概念，我们把这些整合后得到的条件变量称作谓词（Predicate）。</p>
 <p>谓词的生成其实比较简单。首先我们对上一步中分析得到的控制依赖集合进行一个编号，下图给出一个可能的编号结果，其中基本块n的编号为P(n)：</p>
+<div class="table-container">
 <table>
 <thead>
-<tr class="header">
-<th style="text-align: center;">n</th>
-<th style="text-align: center;">1</th>
-<th style="text-align: center;">2</th>
-<th style="text-align: center;">3</th>
-<th style="text-align: center;">4</th>
-<th style="text-align: center;">5</th>
-<th style="text-align: center;">6</th>
-<th style="text-align: center;">7</th>
+<tr>
+<th style="text-align:center">n</th>
+<th style="text-align:center">1</th>
+<th style="text-align:center">2</th>
+<th style="text-align:center">3</th>
+<th style="text-align:center">4</th>
+<th style="text-align:center">5</th>
+<th style="text-align:center">6</th>
+<th style="text-align:center">7</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
-<td style="text-align: center;">K(n)</td>
-<td style="text-align: center;">{}</td>
-<td style="text-align: center;">{1}</td>
-<td style="text-align: center;">{-1}</td>
-<td style="text-align: center;">{1,2}</td>
-<td style="text-align: center;">{-2,3}</td>
-<td style="text-align: center;">{1,3}</td>
-<td style="text-align: center;">{}</td>
+<tr>
+<td style="text-align:center">K(n)</td>
+<td style="text-align:center">{}</td>
+<td style="text-align:center">{1}</td>
+<td style="text-align:center">{-1}</td>
+<td style="text-align:center">{1,2}</td>
+<td style="text-align:center">{-2,3}</td>
+<td style="text-align:center">{1,3}</td>
+<td style="text-align:center">{}</td>
 </tr>
-<tr class="even">
-<td style="text-align: center;">P(n)</td>
-<td style="text-align: center;">0</td>
-<td style="text-align: center;">1</td>
-<td style="text-align: center;">-1</td>
-<td style="text-align: center;">2</td>
-<td style="text-align: center;">3</td>
-<td style="text-align: center;">4</td>
-<td style="text-align: center;">0</td>
+<tr>
+<td style="text-align:center">P(n)</td>
+<td style="text-align:center">0</td>
+<td style="text-align:center">1</td>
+<td style="text-align:center">-1</td>
+<td style="text-align:center">2</td>
+<td style="text-align:center">3</td>
+<td style="text-align:center">4</td>
+<td style="text-align:center">0</td>
 </tr>
 </tbody>
 </table>
-<p>这样，我们可以创建4个谓词P1-P4。当基本块1和2尾端的跳转条件均为true时，谓词P2为true。基于谓词将控制流图改写成下列形式。其中“Px
-:
-By”的形式表示当谓词Px为true时，执行基本块By中的语句。Cy表示基本块By结尾处跳转时的条件变量。这样就完成了从带分支的控制流图到单个基本块的转变。</p>
+</div>
+<p>这样，我们可以创建4个谓词P1-P4。当基本块1和2尾端的跳转条件均为true时，谓词P2为true。基于谓词将控制流图改写成下列形式。其中“Px : By”的形式表示当谓词Px为true时，执行基本块By中的语句。Cy表示基本块By结尾处跳转时的条件变量。这样就完成了从带分支的控制流图到单个基本块的转变。</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><code class="hljs C">B1;<br>P1 = C1;<br>P1 : B2;<br>P2 = C1 &amp; C2;<br>!P1 : B3;<br>P3 = C1 &amp; C3;<br>P4 = !C2 &amp; C3;<br>P2 : B4;<br>P3 : B5;<br>P4 : B6;<br>B7;<br></code></pre></td></tr></table></figure>
-<h2 id="step-3.-代码生成">Step 3. 代码生成</h2>
-<p>这一步需要对LLVM
-IR进行更改，使指令全部被复制至一个基本块中。这里需要考虑两个问题：</p>
-<ol type="1">
+<h2 id="Step-3-代码生成"><a href="#Step-3-代码生成" class="headerlink" title="Step 3. 代码生成"></a>Step 3. 代码生成</h2><p>这一步需要对LLVM IR进行更改，使指令全部被复制至一个基本块中。这里需要考虑两个问题：</p>
+<ol>
 <li>目标是否支持谓词的执行方式，如果不支持则要做一些面向目标的修改；</li>
 <li>LLVM IR为SSA形式，要注意生成新的基本块时不要打破SSA约束。</li>
 </ol>

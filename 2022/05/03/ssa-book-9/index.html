@@ -16,24 +16,28 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 1. 介绍在知乎的编译优化相关书籍推荐中，看到了很多关于这本书的推荐，但是国内论坛关于这本书的讨论相对较少。《SSA Book》从静态单赋值SSA的定义出发，讨论了构造、变换后重构、以及在SSA形式下不同编译算法的执行方式。此外，本书还介绍了很多高级SSA表示和用法，如果将来有时间，争取能对这部分进行补充。 SSA的定义以及Φ函数特性关于SSA的定义的文章遍地都是，就不在这">
+    <meta name="description" content="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment上一节讲了RA中的spilling，在这一个图染色的过程中，我们的输入是一个在程序各个点最大活跃变量数量都小于寄存器数量的程序。在这个程序上，我们需要为不同的寄存器进行染色。 贪婪的着色方案考虑图中的一个节点的度为R-1，其中R为寄存器数量，那么这个寄存器的颜色其实就已经确定了，必定只有一个颜">
 <meta property="og:type" content="article">
-<meta property="og:title" content="《SSA Book》- 1. 介绍">
-<meta property="og:url" content="http://www.gqrelic.com/2022/04/07/ssa-book-1/index.html">
+<meta property="og:title" content="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment">
+<meta property="og:url" content="http://www.gqrelic.com/2022/05/03/ssa-book-9/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 1. 介绍在知乎的编译优化相关书籍推荐中，看到了很多关于这本书的推荐，但是国内论坛关于这本书的讨论相对较少。《SSA Book》从静态单赋值SSA的定义出发，讨论了构造、变换后重构、以及在SSA形式下不同编译算法的执行方式。此外，本书还介绍了很多高级SSA表示和用法，如果将来有时间，争取能对这部分进行补充。 SSA的定义以及Φ函数特性关于SSA的定义的文章遍地都是，就不在这">
+<meta property="og:description" content="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment上一节讲了RA中的spilling，在这一个图染色的过程中，我们的输入是一个在程序各个点最大活跃变量数量都小于寄存器数量的程序。在这个程序上，我们需要为不同的寄存器进行染色。 贪婪的着色方案考虑图中的一个节点的度为R-1，其中R为寄存器数量，那么这个寄存器的颜色其实就已经确定了，必定只有一个颜">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-1-2022-04-08-09-55-37.jpg">
-<meta property="article:published_time" content="2022-04-07T13:30:15.000Z">
-<meta property="article:modified_time" content="2022-04-14T15:20:26.829Z">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-03-16-04-37.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-03-16-28-08.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-04-13-54-52.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png">
+<meta property="article:published_time" content="2022-05-03T06:31:49.000Z">
+<meta property="article:modified_time" content="2022-05-04T08:33:24.348Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
+<meta property="article:tag" content="Register Allocation">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-1-2022-04-08-09-55-37.jpg">
+<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-03-16-04-37.png">
   
   
-  <title>《SSA Book》- 1. 介绍 - GQRelic的Blog</title>
+  <title>《SSA Book》- 9. 基于SSA的Register Allocation - Assignment - GQRelic的Blog</title>
 
   <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
 
@@ -178,7 +182,7 @@
       <div class="banner-text text-center fade-in-up">
         <div class="h2">
           
-            <span id="subtitle" data-typed-text="《SSA Book》- 1. 介绍"></span>
+            <span id="subtitle" data-typed-text="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment"></span>
           
         </div>
 
@@ -189,8 +193,8 @@
     
       <span class="post-meta">
         <i class="iconfont icon-date-fill" aria-hidden="true"></i>
-        <time datetime="2022-04-07 21:30" pubdate>
-          2022年4月7日 晚上
+        <time datetime="2022-05-03 14:31" pubdate>
+          2022年5月3日 下午
         </time>
       </span>
     
@@ -201,7 +205,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          1.2k 字
+          2k 字
         
       </span>
     
@@ -249,47 +253,50 @@
         <div id="board">
           <article class="post-content mx-auto">
             <!-- SEO header -->
-            <h1 style="display: none">《SSA Book》- 1. 介绍</h1>
+            <h1 style="display: none">《SSA Book》- 9. 基于SSA的Register Allocation - Assignment</h1>
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-1-介绍"><a href="#《SSA-Book》-1-介绍" class="headerlink" title="《SSA Book》- 1. 介绍"></a>《SSA Book》- 1. 介绍</h1><p>在知乎的编译优化相关书籍推荐中，看到了很多关于这本书的推荐，但是国内论坛关于这本书的讨论相对较少。《SSA Book》从静态单赋值SSA的定义出发，讨论了构造、变换后重构、以及在SSA形式下不同编译算法的执行方式。此外，本书还介绍了很多高级SSA表示和用法，如果将来有时间，争取能对这部分进行补充。</p>
-<h2 id="SSA的定义以及Φ函数特性"><a href="#SSA的定义以及Φ函数特性" class="headerlink" title="SSA的定义以及Φ函数特性"></a>SSA的定义以及Φ函数特性</h2><p>关于SSA的定义的文章遍地都是，就不在这里赘述了，只给出SSA的两个简单特性：</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-9-基于SSA的Register-Allocation-Assignment"><a href="#《SSA-Book》-9-基于SSA的Register-Allocation-Assignment" class="headerlink" title="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment"></a>《SSA Book》- 9. 基于SSA的Register Allocation - Assignment</h1><p>上一节讲了RA中的spilling，在这一个图染色的过程中，我们的输入是一个在程序各个点最大活跃变量数量都小于寄存器数量的程序。在这个程序上，我们需要为不同的寄存器进行染色。</p>
+<h2 id="贪婪的着色方案"><a href="#贪婪的着色方案" class="headerlink" title="贪婪的着色方案"></a>贪婪的着色方案</h2><p>考虑图中的一个节点的度为R-1，其中R为寄存器数量，那么这个寄存器的颜色其实就已经确定了，必定只有一个颜色是可用的了。这些节点可以被<strong>简化</strong>。我们可以将这个节点放到栈中，并重复进行这个过程。如果图会变成一个空图，那么就说明这个图可以以R色染色。这个就叫做<strong>贪婪的着色方案</strong>。</p>
+<p>首先我们要对图进行简化，使得原书中给出了Simplify(G)算法，G为输入的无向图。算法一个一个移除节点，并把移除的节点放到stack之中，把度小于R的节点放置到worklist之中。如果结束时worklist不为空，则说明该图无法被R色着色。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-03-16-04-37.png" srcset="/img/loading.gif" lazyload alt="使用贪心着色方案来创建stack"></p>
+<p>对于得到的stack，使用下面的算法进行着色。这个过程其实就很简单了，尽可能地选择可行的颜色即可：</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-03-16-28-08.png" srcset="/img/loading.gif" lazyload alt="使用贪心着色方案的着色部分"></p>
+<h3 id="一些关于SSA形式下的算法的讨论"><a href="#一些关于SSA形式下的算法的讨论" class="headerlink" title="一些关于SSA形式下的算法的讨论"></a>一些关于SSA形式下的算法的讨论</h3><p>如果对传统的代码形式下得到的干涉图使用上面的算法，即便输入是一个度小于R的图，图本身仍然不一定是可R色着色的。这样将会导致着色阶段的失败，进而使得无法将spilling和assignment阶段很好地区分开来。但是，对于SSA图，就不可能出现这种着色过程卡住的情况了。这里的解释我是从Fernando Magno的《SSA-BASED REGISTER ALLOCATION<br>》PPT中找来的，进行了一个简单的陈述，简单的解释过程大概是：</p>
 <ol>
-<li>每个变量在程序中有且只有一个赋值语句；</li>
-<li>Φ函数将会被添加至控制流图中的控制流交汇点，用于聚合来自不同分支中的变量值。</li>
+<li>对于SSA图，在支配图中画出def-use关系构成的干涉图，和原有CFG下的干涉图是一样的；</li>
+<li>在树结构上构建出的干涉图是弦图（chordal graph）；</li>
+<li>弦图的性质：一个图是弦图当且仅当其有完美消除序列；</li>
+<li>完美消除序列：一个包含所有结点的序列，对与序列中的点vi，排在vi之前并且和vi相连的点是一个团（团中的任何节点两两相连）；</li>
+<li>如果我们按照完美消除序列进行上色，当上色上到第n个节点v时，v的邻接节点就是一个被上色完成的团。团中的任意两两节点都是互联的，所以肯定使用了和团点数一样的颜色。因此，如果节点v有M个邻接节点，那么v的颜色即为M+1。</li>
 </ol>
-<p>Φ函数的功能是很容易理解的，但是在计算机执行过程中，Φ函数究竟对应什么指令呢？书中针对这个问题进行了解答。Φ函数只存在于静态编译分析过程中，这些语句并不对应着目标硬件上某条指令。在SSA解构阶段，这些Φ函数将会被删除，并使用传统的复制操作对其进行序列化。此外，在部分SSA form中，同样存在部分扩展使得Φ函数存在对应的可执行指令，关于此部分将会在高级部分中进行讨论。</p>
-<h2 id="SSA的优势"><a href="#SSA的优势" class="headerlink" title="SSA的优势"></a>SSA的优势</h2><p>SSA最大优势来源于简化了数据流分析过程。传统数据流分析需要在每一个程序点处捕捉变量的信息，并利用格和流函数等概念，对这些程序点的信息值进行多次计算，得到不动点等信息。这使得在程序中每个程序点，都需要记录此处在数据流分析过程中信息的值，并在每一次运算过程中计算所有的值，即使在这些程序点中大部分信息没有改变。</p>
-<p>然而，SSA形式下的数据流分析可以基于每个变量的def-use链进行分析。分析过程只需要记录每个变量定义处的信息，并通过def-use链更新信息。这大大减少了数据流分析的复杂度。这也使得程序员能够更加容易地编写数据流分析算法，调试难度更低。</p>
-<p>下图中展示了传统形式和SSA形式下对于程序中x与y两个变量的零值传播分析对比。图(a)中在每个基本块的入口和出口处均设置了信息槽，用于记录当前位置x和y变量的值是否为0。可以看出，在大多数与两个变量无关的基本块处，入口和出口的信息是没有变化的，这造成了一定的浪费。</p>
-<p>图(b)中展示了基于SSA形式下的数据流分析过程，可以发现，只需要在每个基本块的结尾设置与该基本块中定义的变量相关的信息槽，即可完成对整个控制流图的数据分析。在SSA形式下，需要的信息槽数量明显减少，数据流分析的效率可以得到提升。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-1-2022-04-08-09-55-37.jpg" srcset="/img/loading.gif" lazyload alt="使用SSA分析的控制流图示例"></p>
-<h2 id="关于SSA存在的谬论"><a href="#关于SSA存在的谬论" class="headerlink" title="关于SSA存在的谬论"></a>关于SSA存在的谬论</h2><p>一部分人认为SSA可能存在一部分缺点，然而实际上针对这些缺点已经有了很好的解决方法。本书将会在后续部分中对这些可能存在的进行研究和解释。此处先给出部分SSA可能存在的缺点，以及对这些缺点进行讨论的章节：</p>
-<div class="table-container">
-<table>
-<thead>
-<tr>
-<th>SSA可能存在的缺点</th>
-<th>解决策略</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>SSA增加了变量的数量</td>
-<td>第2章展示了减少变量数量的优化方法</td>
-</tr>
-<tr>
-<td>SSA难以维护</td>
-<td>第3和5章展示了编译优化过程中对SSA结构的高效维护策略</td>
-</tr>
-<tr>
-<td>SSA析构时将带来大量复制操作</td>
-<td>第3和21章展示了高效的SSA析构策略</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>经过上面的分析，对于一个度小于R的图，在着色过程中的最大团一定小于R，因此颜色必然是够用的。</p>
+<blockquote>
+<p>那个PPT还讲了蛮多东西的，如果有时间可以专门为PPT写一个文章~</p>
+</blockquote>
+<h2 id="SSA下的染色后合并Coalescing"><a href="#SSA下的染色后合并Coalescing" class="headerlink" title="SSA下的染色后合并Coalescing"></a>SSA下的染色后合并Coalescing</h2><p>这一步是为了减少从寄存器到寄存器之间的无意义move操作。这种无意义操作可能因为一些优化过程，或者Φ函数的析构导致。我们需要评估合并一些寄存器之后可以得到的好处，以及我们可以节省多少指令。</p>
+<h3 id="基于图染色的合并方法"><a href="#基于图染色的合并方法" class="headerlink" title="基于图染色的合并方法"></a>基于图染色的合并方法</h3><p>分为两种，激进的合并方式和保守的合并方法：积极合并互相没有干涉的节点时，不考虑结果图的颜色数；而在保守合并中，颜色数不能增加。</p>
+<p>这两种合并方法都是NP完全的，在目前的讨论下我们将专注于保守合并方案，因为我们不希望去处理更多的spill。工具Iterated Register Coalescing（IRC）使用了增量的合并方法，包含下面两种策略。其中度小于R的节点称为低度节点，而其他节点称为高度节点。</p>
+<ol>
+<li>Briggs：如果得到的节点有少于R个高度邻接节点，合并u和v。因为这个合并后的节点在其低度邻接节点被简化后，这个节点始终可以被简化，因此图将保持贪婪R色可着色；</li>
+<li>George：如果u的所有高度邻接节点也是v的邻接节点，合并u和v。合并之后，一旦所有的低度邻接节点都被简化后，就得到了原始图的一个子图，因此图也将保持贪婪R色可着色。</li>
+</ol>
+<p>下面的算法展示了一个简化版本的IRC合并算法，它将合并和简化合并到一起进行：</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-9-2022-05-04-13-54-52.png" srcset="/img/loading.gif" lazyload alt="IRC的剪枝版本，忽略了spill，仅考虑着色和合并"></p>
+<p>简单来说，它以以下三个过程工作：</p>
+<ol>
+<li>尽可能简化not move-related（no affinity）的低度节点；</li>
+<li>当没有更多的节点可以通过这种方式简化时，将选择一个affinity。如果两个规则（Briggs或George）中的一个成功，则相应的节点被合并。如果不是，则删除这个affinity；</li>
+<li>重复进行上述2个步骤，直到图为空。</li>
+</ol>
+<p>这里其实讲的很草率啊，我也看得不是很明白。在《SSA-BASED REGISTER ALLOCATION》中也有讲到合并部分，到时候看再讲讲吧。</p>
+<h3 id="基于扫描的合并方法"><a href="#基于扫描的合并方法" class="headerlink" title="基于扫描的合并方法"></a>基于扫描的合并方法</h3><p>回顾上一章的Tree-scan策略，假设当前程序点p是一条从变量v到v’的mov指令，在第3行释放v时对应的颜色，可以在第五行的v’分配颜色时重复使用。这是最基本的合并思想。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png" srcset="/img/loading.gif" lazyload alt="Tree-scan策略"></p>
+<p>但是这种方法对Φ函数却无能为力。对于来自不同前驱基本块x1，x2在基本块开头给到x3的值，我们的寄存器分配算法通常只能合并其中两个变量，而不会自动把三个都使用一个寄存器。</p>
+<blockquote>
+<p>TODO：关于这个问题，原书建议使用第21章“SSA Destruction for Machine Code”解决，但是我没看过……</p>
+</blockquote>
 
               
             </div>
@@ -326,6 +333,8 @@
       
         <a href="/tags/SSA/">#SSA</a>
       
+        <a href="/tags/Register-Allocation/">#Register Allocation</a>
+      
     </div>
   
 </div>
@@ -338,15 +347,15 @@
                   <article class="post-prev col-6">
                     
                     
-                      <a href="/2022/04/09/ssa-book-2/" title="《SSA Book》- 2. SSA种类和特性">
-                        <i class="iconfont icon-arrowleft"></i>
-                        <span class="hidden-mobile">《SSA Book》- 2. SSA种类和特性</span>
-                        <span class="visible-mobile">上一篇</span>
-                      </a>
-                    
                   </article>
                   <article class="post-next col-6">
                     
+                    
+                      <a href="/2022/05/01/ssa-book-8/" title="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling">
+                        <span class="hidden-mobile">《SSA Book》- 8. 基于SSA的Register Allocation - Spilling</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
                     
                   </article>
                 </div>

@@ -16,19 +16,30 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）">
+    <meta name="description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）  整体来说，最需">
 <meta property="og:type" content="article">
 <meta property="og:title" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling">
 <meta property="og:url" content="http://www.gqrelic.com/2022/05/01/ssa-book-8/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）">
+<meta property="og:description" content="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）  整体来说，最需">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-26-26.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-47-40.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-32-11.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-35-03.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-15-46-37.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-16-24-31.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-01-36.png">
+<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-19-35.png">
 <meta property="article:published_time" content="2022-05-01T06:43:10.000Z">
-<meta property="article:modified_time" content="2022-05-02T10:43:00.632Z">
+<meta property="article:modified_time" content="2022-05-03T06:34:51.583Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
+<meta property="article:tag" content="Register Allocation">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-26-26.png">
   
   
   <title>《SSA Book》- 8. 基于SSA的Register Allocation - Spilling - GQRelic的Blog</title>
@@ -199,7 +210,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          5.1k 字
+          4.9k 字
         
       </span>
     
@@ -251,181 +262,107 @@
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--8.-基于ssa的register-allocation---spilling">《SSA
-Book》- 8. 基于SSA的Register Allocation - Spilling</h1>
-<p>这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：</p>
-<ol type="1">
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-8-基于SSA的Register-Allocation-Spilling"><a href="#《SSA-Book》-8-基于SSA的Register-Allocation-Spilling" class="headerlink" title="《SSA Book》- 8. 基于SSA的Register Allocation - Spilling"></a>《SSA Book》- 8. 基于SSA的Register Allocation - Spilling</h1><p>这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：</p>
+<ol>
 <li>有足够的寄存器给所有的变量吗？（spill test）</li>
 <li>如果是，选择哪个寄存器分配给哪个变量？（assignment）</li>
 <li>如果没有，我如何选择哪些变量暂存到内存？（spilling）</li>
 </ol>
 <p>整体来说，最需要考虑的问题是Spilling和Assignment的方法。两个部分都较为复杂，因此分为两篇文章来描述。这篇文章讲的则是寄存器分配算法的总览，以及Spilling部分。</p>
-<h2 id="典型的寄存器分配算法类型">典型的寄存器分配算法类型</h2>
-<p>首先，需要考虑两种经典的分析方法：线性扫描和图染色方法。</p>
-<p><strong>线性扫描</strong>：线性扫描的方法以拓扑排序的方式依次遍历每个基本块，把变量def最晚的use之间的区域都视作变量的live区间。当遇到变量的定义时，我们检查是否有空闲的寄存器，如果成功（spill
-test），我们选择一个寄存器存放该变量（assignment）。如果没有，我们从当前存在的变量中选择使用最广泛的变量，将其溢出（spilling）。当我们遇到它的最后一次使用时，我们释放分配给它的寄存器。这样子有较高的效率，但是精度较低（因为有很多基本块不会被执行）。</p>
-<p><strong>图染色寄存器分配方法</strong>：基于图染色的寄存器分配方法，为基本块之间构造干涉图（Interference
-graph），分配器将尝试给干涉图着色，如果成功（spill
-test），那么着色则表示了寄存器对变量的有效分配结果（assignment）。如果不是，分配器将选择一些节点（通常是链接的节点数量最多的节点），并使用内存暂存（spilling）将它们从图中删除。虽然图染色能够提供更精确的分析，但它是np完全问题。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-26-26.png" srcset="/img/loading.gif" lazyload
-alt="线性扫描和图染色方法" />
-<figcaption aria-hidden="true">线性扫描和图染色方法</figcaption>
-</figure>
+<h2 id="典型的寄存器分配算法类型"><a href="#典型的寄存器分配算法类型" class="headerlink" title="典型的寄存器分配算法类型"></a>典型的寄存器分配算法类型</h2><p>首先，需要考虑两种经典的分析方法：线性扫描和图染色方法。</p>
+<p><strong>线性扫描</strong>：线性扫描的方法以拓扑排序的方式依次遍历每个基本块，把变量def最晚的use之间的区域都视作变量的live区间。当遇到变量的定义时，我们检查是否有空闲的寄存器，如果成功（spill test），我们选择一个寄存器存放该变量（assignment）。如果没有，我们从当前存在的变量中选择使用最广泛的变量，将其溢出（spilling）。当我们遇到它的最后一次使用时，我们释放分配给它的寄存器。这样子有较高的效率，但是精度较低（因为有很多基本块不会被执行）。</p>
+<p><strong>图染色寄存器分配方法</strong>：基于图染色的寄存器分配方法，为基本块之间构造干涉图（Interference graph），分配器将尝试给干涉图着色，如果成功（spill test），那么着色则表示了寄存器对变量的有效分配结果（assignment）。如果不是，分配器将选择一些节点（通常是链接的节点数量最多的节点），并使用内存暂存（spilling）将它们从图中删除。虽然图染色能够提供更精确的分析，但它是np完全问题。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-26-26.png" srcset="/img/loading.gif" lazyload alt="线性扫描和图染色方法"></p>
 <p>在SSA下的变量的use都是被它的def支配的（应该是指严格SSA，因为编译器构造出来的SSA一般都是严格的），因此，SSA中活跃范围都是树形的，而不会出现“在某个基本快中合并”的情况，因为这些合并都被Φ函数创建新变量给终结了。下图即为SSA形势下的活动范围和传统的区别：</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-47-40.png" srcset="/img/loading.gif" lazyload
-alt="SSA形式下的变量活动范围" />
-<figcaption aria-hidden="true">SSA形式下的变量活动范围</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-12-47-40.png" srcset="/img/loading.gif" lazyload alt="SSA形式下的变量活动范围"></p>
 <p>这个特性带来了一些好处。在SSA下，基于图的分配方法中的干涉图变成了弦图，这意味着可以在图着色的过程，使用一些简单算法。这个在后面进行介绍。</p>
 <p>对于线性扫描策略，在SSA下可以进行优化版本的Tree-scan树扫描策略。这种基于贪婪的分配会扫描<strong>支配树</strong>（而不是原始的CFG），按照自上而下的顺序从根到叶给变量着色，分配寄存器。因为树的分支是独立的，所以对一个分支着色不会对树的其他分支产生影响。树扫描策略的伪代码如下所示。简单来说，当到达变量最后一个use时，这个颜色变得可用；当到达变量的定义时，为它选择一个颜色即可。然后到达基本块末尾时，就以BFS为每一个子节点调用该函数。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png" srcset="/img/loading.gif" lazyload
-alt="Tree-scan策略" />
-<figcaption aria-hidden="true">Tree-scan策略</figcaption>
-</figure>
-<p>无论是树扫描还是图染色，我们使用的方法都是首先把同时live的最大变量数量降低至寄存器数量R以下，然后再为它进行染色。这样就可以把coloring步骤和spilling步骤分开。下面我们对Spill步骤进行介绍。</p>
-<h2 id="spilling溢出">Spilling：溢出</h2>
-<p>溢出过程对于线性扫描和图染色是不同的。对于线性扫描，它的分析是局部的，当遍历到程序的某个节点，发现活跃变量数量超过了寄存器上限时，算法将会对这一个小范围进行spill，也就是添加load和store操作将数据写回。这个过程是局部性的。但是，图染色使用了干涉图，这是一个全局性的概念。图染色的溢出意味着直接删除干涉图的一个节点，从而删除变量的整个生命范围。在每次使用这个变量时，都会从内存读取这个变量。</p>
-<p>图染色的这种方法叫做Spill
-everywhere的策略。spill的过程中需要用寄存器暂存load和store的数据，这些寄存器同样需要寄存器分配。因此，需要迭代进行寄存器分配过程，干涉图将重新构建。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-13-10-28.png" srcset="/img/loading.gif" lazyload alt="Tree-scan策略"></p>
+<p>无论是树扫描还是图染色，我们使用的方法都是首先把同时live的最大变量数量降低至寄存器数量R以下，然后再为它进行染色。这样就可以把assignment步骤和spilling步骤分开。下面我们对Spill步骤进行介绍。</p>
+<h2 id="Spilling：溢出"><a href="#Spilling：溢出" class="headerlink" title="Spilling：溢出"></a>Spilling：溢出</h2><p>溢出过程对于线性扫描和图染色是不同的。对于线性扫描，它的分析是局部的，当遍历到程序的某个节点，发现活跃变量数量超过了寄存器上限时，算法将会对这一个小范围进行spill，也就是添加load和store操作将数据写回。这个过程是局部性的。但是，图染色使用了干涉图，这是一个全局性的概念。图染色的溢出意味着直接删除干涉图的一个节点，从而删除变量的整个生命范围。在每次使用这个变量时，都会从内存读取这个变量。</p>
+<p>图染色的这种方法叫做Spill everywhere的策略。spill的过程中需要用寄存器暂存load和store的数据，这些寄存器同样需要寄存器分配。因此，需要迭代进行寄存器分配过程，干涉图将重新构建。</p>
 <p>选择什么样的变量进行spill本质上是一个优化问题，我们的目标是：结果代码应该是可用R个寄存器着色的，且插入的load-store的代价应该是最小的。</p>
-<h2 id="graph-based的spill策略">Graph-based的spill策略</h2>
-<p>对于需要spill的节点选取，如果我们需要全局的考虑哪些变量需要spill，这个过程会是一个NP问题。因此这里使用基于贪婪的cost
-function。最简单的代价即为“节点的度”，优先写回度最高的节点即可。但是，只考虑节点的度是脱离了CFG本身的，所以我们要考虑更多的因素。</p>
+<h2 id="Graph-based的spill策略"><a href="#Graph-based的spill策略" class="headerlink" title="Graph-based的spill策略"></a>Graph-based的spill策略</h2><p>对于需要spill的节点选取，如果我们需要全局的考虑哪些变量需要spill，这个过程会是一个NP问题。因此这里使用基于贪婪的cost function。最简单的代价即为“节点的度”，优先写回度最高的节点即可。但是，只考虑节点的度是脱离了CFG本身的，所以我们要考虑更多的因素。</p>
 <p><strong>“useful”标签</strong>：这个属性表示了“在变量的生命周期中，同时活跃的变量超过寄存器数R的程序点数量”。对于这个属性的计算，需要在自底向上遍历CFG的过程中同时计算考虑两个元素：</p>
-<ol type="1">
+<ol>
 <li>对于每个程序点p，计算p.pressure，对应于p的定义点上活着的变量数量；</li>
 <li>对于变量v，具有(v→p).high的布尔值属性。标明这个程序点p有v的活跃，如果该值为true，则表明程序点的活跃变量数量大于寄存器数量。</li>
 </ol>
 <p>那么，useful标签的定义即为下式。如果v.useful=0，则说明对该变量进行spill是没有意义的。</p>
-<p><span class="math display">\[
-v.useful = |\{p:(v\to p)  \wedge p.pressure &gt; R \}|
-\]</span></p>
-<h2 id="scan-based的spill策略">Scan-based的spill策略</h2>
-<p>上面基于图的方法太过于全局，往往无法取得很好的效果。所以更好的就是Scan-based的方法。基于扫描的方法能够更局部性的将变量写回到内存中，取得更高的寄存器利用率。</p>
+<script type="math/tex; mode=display">
+v.useful = |\{p:(v\to p)  \wedge p.pressure > R \}|</script><h2 id="Scan-based的spill策略"><a href="#Scan-based的spill策略" class="headerlink" title="Scan-based的spill策略"></a>Scan-based的spill策略</h2><p>上面基于图的方法太过于全局，往往无法取得很好的效果。所以更好的就是Scan-based的方法。基于扫描的方法能够更局部性的将变量写回到内存中，取得更高的寄存器利用率。</p>
 <p>下面给出了一个分配的算法。简单来说，对于每一个基本块B，都有一个B.in_regs集合，这个集合里面的变量就是要被放在寄存器中的变量。如果use的变量不在in_regs中，那么就需要把他load出来，并把这个v放到in_regs中，接着使用<strong>evict函数换下去一个变量</strong>。此外，对于last_used的，要把它从in_regs中删除；新def的变量，需要添加到in_regs中，同时也要调用evict换走一个变量。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-32-11.png" srcset="/img/loading.gif" lazyload
-alt="Furthest first spilling算法" />
-<figcaption aria-hidden="true">Furthest first spilling算法</figcaption>
-</figure>
-<p>这些过程是很直观的，最重要的就是我们根据什么来选择需要spill走的变量，也就是evict函数的实现。接下来，我们讨论的方法是“Furthest
-first”。当evict函数被调用时，我们将会把“下一次use隔得最远”的变量spill。</p>
-<h3 id="基于distance属性的furthest-first策略">基于Distance属性的Furthest
-first策略</h3>
-<p>下面的函数展示了基于Distance属性的evict函数实现。如果in_regs中的变量已经超过最大寄存器数量了，那么就把最大的distance的变量换出去，并且相应地添加store操作。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-35-03.png" srcset="/img/loading.gif" lazyload
-alt="基于distance属性的evict函数实现" />
-<figcaption
-aria-hidden="true">基于distance属性的evict函数实现</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-32-11.png" srcset="/img/loading.gif" lazyload alt="Furthest first spilling算法"></p>
+<p>这些过程是很直观的，最重要的就是我们根据什么来选择需要spill走的变量，也就是evict函数的实现。接下来，我们讨论的方法是“Furthest first”。当evict函数被调用时，我们将会把“下一次use隔得最远”的变量spill。</p>
+<h3 id="基于Distance属性的Furthest-first策略"><a href="#基于Distance属性的Furthest-first策略" class="headerlink" title="基于Distance属性的Furthest first策略"></a>基于Distance属性的Furthest first策略</h3><p>下面的函数展示了基于Distance属性的evict函数实现。如果in_regs中的变量已经超过最大寄存器数量了，那么就把最大的distance的变量换出去，并且相应地添加store操作。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-35-03.png" srcset="/img/loading.gif" lazyload alt="基于distance属性的evict函数实现"></p>
 <p>下面给出一个实际的控制流图例子。其中，程序点p0，p3和p4寄存器压力过高，需要选取变量spill。假设左边的分支被选取，且循环执行100次，那么x的“下次use的距离”将会达到101，非常远。假设右边的分支被选取，那么变量y的下次use距离为2，相对更远一些。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-15-46-37.png" srcset="/img/loading.gif" lazyload
-alt="选取变量进行spill的例子" />
-<figcaption aria-hidden="true">选取变量进行spill的例子</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-15-46-37.png" srcset="/img/loading.gif" lazyload alt="选取变量进行spill的例子"></p>
 <p>如果我们考虑压力高的程序点，左边的路径并没有寄存器压力过高的程序点，因此选取x进行spill只会优化p0的压力。反之，如果选取y，就能优化p0，p3和p4的压力。因此，最后的结果优先选择y作为spill变量。</p>
-<p>但是，假设p1也是一个压力过高的程序点，那么这个时候spill
-x就变得必要了，不然要存取100次变量y……</p>
+<p>但是，假设p1也是一个压力过高的程序点，那么这个时候spill x就变得必要了，不然要存取100次变量y……</p>
 <p>综上所述，“distance”的概念是不够准确的。我们将用“profitability”的概念替换第一个最远算法中的“distance”概念。也就是对“能够受益于spill某个变量的程序点”数量的度量。</p>
-<h3
-id="使用profitability代替distance">使用profitability代替distance</h3>
-<p>设p是一个程序点，v是p处活跃的变量。设v.HP(p)（High-Pressure）是所有程序点q的集合满足：</p>
-<ol type="1">
+<h3 id="使用profitability代替distance"><a href="#使用profitability代替distance" class="headerlink" title="使用profitability代替distance"></a>使用profitability代替distance</h3><p>设p是一个程序点，v是p处活跃的变量。设v.HP(p)（High-Pressure）是所有程序点q的集合满足：</p>
+<ol>
 <li>在q处的寄存器压力大于R；</li>
 <li>v在q处是live的；</li>
 <li>存在一条从p到q的路径，它不包含v的任何use或者def。</li>
 </ol>
 <p>那么，spill v带来的profitability则为：</p>
-<p><span class="math display">\[
-v.spill_profitability(p)=\sum_{q\in v.HP(p)}q.frequency
-\]</span></p>
-<p>在之前的例子中，x.HP(p0)即为在p0处spill
-x受益的程序点的集合。下面的表格给出了我们的实例在两个场景下的不同变量的情况。在p1不是寄存器高压力点的情况下，我们会选择y；反之我们会选择x。</p>
+<script type="math/tex; mode=display">
+v.spill_profitability(p)=\sum_{q\in v.HP(p)}q.frequency</script><p>在之前的例子中，x.HP(p0)即为在p0处spill x受益的程序点的集合。下面的表格给出了我们的实例在两个场景下的不同变量的情况。在p1不是寄存器高压力点的情况下，我们会选择y；反之我们会选择x。</p>
+<div class="table-container">
 <table>
 <thead>
-<tr class="header">
+<tr>
 <th></th>
 <th>p1寄存器压力低</th>
 <th>p1寄存器压力高</th>
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td>x.HP(p0)</td>
 <td>{p0}</td>
 <td>{p0,p1}</td>
 </tr>
-<tr class="even">
+<tr>
 <td>y.HP(p0)</td>
 <td>{p0,p3}</td>
 <td>{p0,p3}</td>
 </tr>
-<tr class="odd">
+<tr>
 <td>x.spill_profitability(p0)</td>
 <td>1</td>
 <td>51</td>
 </tr>
-<tr class="even">
+<tr>
 <td>y.spill_profitability(p0)</td>
 <td>1.5</td>
 <td>1.5</td>
 </tr>
 </tbody>
 </table>
-<h3 id="基本块in_regs属性的初始化">基本块in_regs属性的初始化</h3>
-<h4
-id="普通基本块的in_regs初始化处理">普通基本块的in_regs初始化处理</h4>
-<p>上面的算法依赖于一个初始化的in_regs，并在这个集合的基础上对变量进行调整，因此我们需要首先计算in_regs的初始化。初始化算法基于拓扑排序，即在分析某个基本块时，它的前驱都已经被处理。那么前驱中的Live-in变量有三种情况：</p>
-<ol type="1">
+</div>
+<h3 id="基本块in-regs属性的初始化"><a href="#基本块in-regs属性的初始化" class="headerlink" title="基本块in_regs属性的初始化"></a>基本块in_regs属性的初始化</h3><h4 id="普通基本块的in-regs初始化处理"><a href="#普通基本块的in-regs初始化处理" class="headerlink" title="普通基本块的in_regs初始化处理"></a>普通基本块的in_regs初始化处理</h4><p>上面的算法依赖于一个初始化的in_regs，并在这个集合的基础上对变量进行调整，因此我们需要首先计算in_regs的初始化。初始化算法基于拓扑排序，即在分析某个基本块时，它的前驱都已经被处理。那么前驱中的Live-in变量有三种情况：</p>
+<ol>
 <li>这个变量在所有前驱基本块中都available（allpreds_in_regs）；</li>
 <li>在部分前驱基本块中available（somepreds_in_regs）；</li>
 <li>不在任何前驱基本块中available。</li>
 </ol>
 <p>变量是available的指这个变量已经被存在寄存器中了，还没有被spill出去。那么对这个基本块的B.in_regs计算如下。首先，先把allpreds_in_regs的变量放进去，然后再把部分前驱基本块中available集合中，profitability较小的变量放进去。这样得到最终的in_regs。（这里好像没有讲到如果allpreds_in_regs变量的数量超过上限了该怎么办？但仔细一想，如果allpreds_in_regs超了，那么前驱寄存器保存的变量数量肯定也是超过了的，所以这种allpreds_in_regs超了的情况应该不会发生）。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-16-24-31.png" srcset="/img/loading.gif" lazyload
-alt="普通基本块的B.in_regs的初值计算" />
-<figcaption
-aria-hidden="true">普通基本块的B.in_regs的初值计算</figcaption>
-</figure>
-<p>对于那些需要spill的变量，将会添加load操作在对应的前驱块中（或者前驱的critical
-edge上）。这个过程和析构Φ函数的过程类似，所以实际过程中一般都会在后期析构SSA的时候顺便把操作给添加了。</p>
-<h4 id="循环头的in_regs初始化处理">循环头的in_regs初始化处理</h4>
-<p>循环的in_regs情况会更加的复杂，和普通基本块中的情况会不一样。下面的例子展示了为循环头计算in_regs的情况：</p>
-<ol type="1">
-<li><p>例子(a)中，在上面的基本块末尾，假设x不再在寄存器中available（即已经被spill出去了），但是如果我们在p2
-load回来，那就需要load好多次。所以最好的方法就是添加在p1，也就是另外加一个基本块。那么，B.in_regs中将会包含x（就是下面的那个基本块），这和之前的分析是相反的。</p></li>
-<li><p>对于例子(b)中，假设在循环的入口处x仍然在寄存器中available，在标记为HP的地方寄存器溢出了，我们会在p0存储变量，然后在p2重新load回变量，这样也可以避免在循环内不断地被执行。因此，B.in_regs中将会不包含x，这也和之前的情况相反。</p></li>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-16-24-31.png" srcset="/img/loading.gif" lazyload alt="普通基本块的B.in_regs的初值计算"></p>
+<p>对于那些需要spill的变量，将会添加load操作在对应的前驱块中（或者前驱的critical edge上）。这个过程和析构Φ函数的过程类似，所以实际过程中一般都会在后期析构SSA的时候顺便把操作给添加了。</p>
+<h4 id="循环头的in-regs初始化处理"><a href="#循环头的in-regs初始化处理" class="headerlink" title="循环头的in_regs初始化处理"></a>循环头的in_regs初始化处理</h4><p>循环的in_regs情况会更加的复杂，和普通基本块中的情况会不一样。下面的例子展示了为循环头计算in_regs的情况：</p>
+<ol>
+<li><p>例子(a)中，在上面的基本块末尾，假设x不再在寄存器中available（即已经被spill出去了），但是如果我们在p2 load回来，那就需要load好多次。所以最好的方法就是添加在p1，也就是另外加一个基本块。那么，B.in_regs中将会包含x（就是下面的那个基本块），这和之前的分析是相反的。</p>
+</li>
+<li><p>对于例子(b)中，假设在循环的入口处x仍然在寄存器中available，在标记为HP的地方寄存器溢出了，我们会在p0存储变量，然后在p2重新load回变量，这样也可以避免在循环内不断地被执行。因此，B.in_regs中将会不包含x，这也和之前的情况相反。</p>
+</li>
 </ol>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-01-36.png" srcset="/img/loading.gif" lazyload
-alt="循环入口的B.in_regs初始值计算例子" />
-<figcaption
-aria-hidden="true">循环入口的B.in_regs初始值计算例子</figcaption>
-</figure>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-01-36.png" srcset="/img/loading.gif" lazyload alt="循环入口的B.in_regs初始值计算例子"></p>
 <p>所以，对于循环入口处的计算，需要下面的算法。其中，B.livein表示B和L的Live-In变量集合，L.Maxlive是指整个循环中需要寄存器最多的数量，而R是指寄存器的总数。如果L.Maxlive＞R，则必须要溢出L.Maxlive−R个变量，这些变量是具有最小profitability代价的变量。所以，不超过|B.livein|−(L.Maxlive−R)个变量将会在B中被分配至寄存器中，其他的变量都会被spill出去。</p>
-<figure>
-<img
-src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-19-35.png" srcset="/img/loading.gif" lazyload
-alt="循环入口基本块的B.in_regs的初值计算" />
-<figcaption
-aria-hidden="true">循环入口基本块的B.in_regs的初值计算</figcaption>
-</figure>
-<h3 id="对scan-based的spill算法总结">对Scan-based的spill算法总结</h3>
-<p>讲了这么多奇奇怪怪的东西，spill的整体算法包括几个阶段：首先，我们预先计算live-range和profitability的指标；然后，我们按照拓扑顺序遍历CFG，计算所有基本块B.in_regs的初始值。接着扫描每个基本块。在此阶段，我们在基本块边界维护寄存器和内存中可用的活动变量集，并对in_regs集合进行更新。最后，在分析的过程中，为代码添加load和store操作。</p>
+<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-8-2022-05-02-18-19-35.png" srcset="/img/loading.gif" lazyload alt="循环入口基本块的B.in_regs的初值计算"></p>
+<h3 id="对Scan-based的spill算法总结"><a href="#对Scan-based的spill算法总结" class="headerlink" title="对Scan-based的spill算法总结"></a>对Scan-based的spill算法总结</h3><p>讲了这么多奇奇怪怪的东西，spill的整体算法包括几个阶段：首先，我们预先计算live-range和profitability的指标；然后，我们按照拓扑顺序遍历CFG，计算所有基本块B.in_regs的初始值。接着扫描每个基本块。在此阶段，我们在基本块边界维护寄存器和内存中可用的活动变量集，并对in_regs集合进行更新。最后，在分析的过程中，为代码添加load和store操作。</p>
 <blockquote>
 <p>好多，写的累死我了，下一次更新assignment部分！</p>
 </blockquote>
@@ -465,6 +402,8 @@ aria-hidden="true">循环入口基本块的B.in_regs的初值计算</figcaption>
       
         <a href="/tags/SSA/">#SSA</a>
       
+        <a href="/tags/Register-Allocation/">#Register Allocation</a>
+      
     </div>
   
 </div>
@@ -476,6 +415,12 @@ aria-hidden="true">循环入口基本块的B.in_regs的初值计算</figcaption>
                 <div class="post-prevnext my-3">
                   <article class="post-prev col-6">
                     
+                    
+                      <a href="/2022/05/03/ssa-book-9/" title="《SSA Book》- 9. 基于SSA的Register Allocation - Assignment">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">《SSA Book》- 9. 基于SSA的Register Allocation - Assignment</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
                     
                   </article>
                   <article class="post-next col-6">

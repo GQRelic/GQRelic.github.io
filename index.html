@@ -202,6 +202,71 @@
     <article class="col-12 col-md-12 mx-auto index-info">
       <h1 class="index-header">
         
+        <a href="/2022/05/03/ssa-book-9/" target="_self">
+          《SSA Book》- 9. 基于SSA的Register Allocation - Assignment
+        </a>
+      </h1>
+
+      <a class="index-excerpt" href="/2022/05/03/ssa-book-9/" target="_self">
+        <div>
+          
+          《SSA Book》- 9. 基于SSA的Register Allocation - Assignment上一节讲了RA中的spilling，在这一个图染色的过程中，我们的输入是一个在程序各个点最大活跃变量数量都小于寄存器数量的程序。在这个程序上，我们需要为不同的寄存器进行染色。 贪婪的着色方案考虑图中的一个节点的度为R-1，其中R为寄存器数量，那么这个寄存器的颜色其实就已经确定了，必定只有一个颜
+        </div>
+      </a>
+
+      <div class="index-btm post-metas">
+        
+          <div class="post-meta mr-3">
+            <i class="iconfont icon-date"></i>
+            <time datetime="2022-05-03 14:31" pubdate>
+              2022-05-03
+            </time>
+          </div>
+        
+        
+          <div class="post-meta mr-3 d-flex align-items-center">
+            <i class="iconfont icon-category"></i>
+            
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%BC%96%E8%AF%91/" class="category-chain-item">编译</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+          </div>
+        
+        
+          <div class="post-meta">
+            <i class="iconfont icon-tags"></i>
+            
+              <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
+            
+              <a href="/tags/SSA/">#SSA</a>
+            
+              <a href="/tags/Register-Allocation/">#Register Allocation</a>
+            
+          </div>
+        
+      </div>
+    </article>
+  </div>
+
+  <div class="row mx-auto index-card">
+    
+    
+    <article class="col-12 col-md-12 mx-auto index-info">
+      <h1 class="index-header">
+        
         <a href="/2022/05/01/ssa-book-8/" target="_self">
           《SSA Book》- 8. 基于SSA的Register Allocation - Spilling
         </a>
@@ -210,7 +275,7 @@
       <a class="index-excerpt" href="/2022/05/01/ssa-book-8/" target="_self">
         <div>
           
-          《SSA Book》- 8. 基于SSA的Register Allocation - Spilling 这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）
+          《SSA Book》- 8. 基于SSA的Register Allocation - Spilling这是对应原书高级部分的第22章，因为觉得好重要，所以先跳到这里。寄存器分配需要考虑的问题有三个：  有足够的寄存器给所有的变量吗？（spill test） 如果是，选择哪个寄存器分配给哪个变量？（assignment） 如果没有，我如何选择哪些变量暂存到内存？（spilling）  整体来说，最需
         </div>
       </a>
 
@@ -253,6 +318,8 @@
             
               <a href="/tags/SSA/">#SSA</a>
             
+              <a href="/tags/Register-Allocation/">#Register Allocation</a>
+            
           </div>
         
       </div>
@@ -273,7 +340,7 @@
       <a class="index-excerpt" href="/2022/04/28/ssa-book-7/" target="_self">
         <div>
           
-          《SSA Book》- 7. 基于SSA的Liveness Analysis 本章要介绍的是活跃变量分析（Live analysis）。活跃变量的定义为：  对于变量v和程序点p，如果在CFG中沿着从p开始的某条路径会引用变量v在p点的值，则称变量v在点p是活跃（live）的，否则称变量x在点p不活跃（dead）。  字面意思即为这个变量如果在这一个点后还会被使用，那么它就是活跃的。活
+          《SSA Book》- 7. 基于SSA的Liveness Analysis本章要介绍的是活跃变量分析（Live analysis）。活跃变量的定义为：  对于变量v和程序点p，如果在CFG中沿着从p开始的某条路径会引用变量v在p点的值，则称变量v在点p是活跃（live）的，否则称变量x在点p不活跃（dead）。  字面意思即为这个变量如果在这一个点后还会被使用，那么它就是活跃的。活跃变量分析地结
         </div>
       </a>
 
@@ -336,7 +403,7 @@
       <a class="index-excerpt" href="/2022/04/24/ssa-book-6/" target="_self">
         <div>
           
-          《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够
+          《SSA Book》- 6. 基于SSA的Information Propagating从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替
         </div>
       </a>
 
@@ -399,7 +466,7 @@
       <a class="index-excerpt" href="/2022/04/23/ssa-book-5/" target="_self">
         <div>
           
-          《SSA Book》- 5. SSA的高级构造算法 在“3.SSA的基本构造算法”中，介绍了构造SSA的基本方法。Φ语句将会被插入至变量定义的支配边界位置，该Φ语句本身也将变成新的定义。本文将会给出关于求解支配边界DF+集合的高级算法，包括：  基于DJ-grpah构造DF+集合的方法； 基于数据流分析的DF+集合构造方法； 基于Loop Nesting Forest的DF+集合构造方
+          《SSA Book》- 5. SSA的高级构造算法在“3.SSA的基本构造算法”中，介绍了构造SSA的基本方法。Φ语句将会被插入至变量定义的支配边界位置，该Φ语句本身也将变成新的定义。本文将会给出关于求解支配边界DF+集合的高级算法，包括：  基于DJ-grpah构造DF+集合的方法； 基于数据流分析的DF+集合构造方法； 基于Loop Nesting Forest的DF+集合构造方法。  使用D
         </div>
       </a>
 
@@ -462,7 +529,7 @@
       <a class="index-excerpt" href="/2022/04/16/ssa-book-4/" target="_self">
         <div>
           
-          《SSA Book》- 4. SSA的基本析构算法 本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简
+          《SSA Book》- 4. SSA的基本析构算法本文对应原书3.2节，其介绍了如何对C-SSA进行最简单的析构，以及用简单的方法将T-SSA转化为C-SSA的方法。 SSA形式是为了在优化阶段能够更加高效和简单，当完成优化之后，就需要把他变成没有Φ函数的普通形式，这个过程称作SSA析构。 之前我们提到过，C-SSA的Φ网络中的变量具有互相不覆盖的live-ranges，这样子只需要做简单的指令替
         </div>
       </a>
 
@@ -525,7 +592,7 @@
       <a class="index-excerpt" href="/2022/04/14/back-end-opt-1/" target="_self">
         <div>
           
-          编译后端优化：If-Conversion算法与LLVM实现 在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整
+          编译后端优化：If-Conversion算法与LLVM实现在之前的某个项目中收到了这样的需求：给定一个无环控制流图，需要利用select等操作，消除其所有的分支，将其变成一个基本块。上网搜索现有轮子时，发现了大佬写的应用于GPU单指令多数据流的If-Conversion编译优化算法，能够很好地解决需求中的问题。于是我便照葫芦画瓢，直接在LLVM上实现了一个简单的Pass，并按照需求做了一些调整。
         </div>
       </a>
 
@@ -588,7 +655,7 @@
       <a class="index-excerpt" href="/2022/04/10/ssa-book-3/" target="_self">
         <div>
           
-          《SSA Book》- 3. SSA的基本构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置
+          《SSA Book》- 3. SSA的基本构造算法上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置。其整体流程如
         </div>
       </a>
 
@@ -651,7 +718,7 @@
       <a class="index-excerpt" href="/2022/04/09/ssa-book-2/" target="_self">
         <div>
           
-          《SSA Book》- 2. SSA种类和特性 本章首先介绍了SSA和non-SSA下的def-use链特性进行了分析。同时本章介绍了几种不同形式的SSA，包括最小SSA（Minimal SSA）、严格SSA（Strict SSA）、剪枝SSA（Pruned SSA）和常规和转换SSA（Conventional and transformed SSA） Def-use与use-def链
+          《SSA Book》- 2. SSA种类和特性本章首先介绍了SSA和non-SSA下的def-use链特性进行了分析。同时本章介绍了几种不同形式的SSA，包括最小SSA（Minimal SSA）、严格SSA（Strict SSA）、剪枝SSA（Pruned SSA）和常规和转换SSA（Conventional and transformed SSA） Def-use与use-def链Def-use
         </div>
       </a>
 
@@ -714,7 +781,7 @@
       <a class="index-excerpt" href="/2022/04/07/ssa-book-1/" target="_self">
         <div>
           
-          《SSA Book》- 1. 介绍 在知乎的编译优化相关书籍推荐中，看到了很多关于这本书的推荐，但是国内论坛关于这本书的讨论相对较少。《SSA Book》从静态单赋值SSA的定义出发，讨论了构造、变换后重构、以及在SSA形式下不同编译算法的执行方式。此外，本书还介绍了很多高级SSA表示和用法，如果将来有时间，争取能对这部分进行补充。 SSA的定义以及Φ函数特性 关于SSA的定义的文章遍地都
+          《SSA Book》- 1. 介绍在知乎的编译优化相关书籍推荐中，看到了很多关于这本书的推荐，但是国内论坛关于这本书的讨论相对较少。《SSA Book》从静态单赋值SSA的定义出发，讨论了构造、变换后重构、以及在SSA形式下不同编译算法的执行方式。此外，本书还介绍了很多高级SSA表示和用法，如果将来有时间，争取能对这部分进行补充。 SSA的定义以及Φ函数特性关于SSA的定义的文章遍地都是，就不在这
         </div>
       </a>
 
