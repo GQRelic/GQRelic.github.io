@@ -16,21 +16,19 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 6. 基于SSA的Information Propagating从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替">
+    <meta name="description" content="《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够">
 <meta property="og:type" content="article">
 <meta property="og:title" content="《SSA Book》- 6. 基于SSA的Information Propagating">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/24/ssa-book-6/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 6. 基于SSA的Information Propagating从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替">
+<meta property="og:description" content="《SSA Book》- 6. 基于SSA的Information Propagating 从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。 本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-24-22-35-24.png">
 <meta property="article:published_time" content="2022-04-24T14:13:54.000Z">
 <meta property="article:modified_time" content="2022-05-03T06:34:47.971Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-24-22-35-24.png">
   
   
   <title>《SSA Book》- 6. 基于SSA的Information Propagating - GQRelic的Blog</title>
@@ -253,51 +251,69 @@
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-6-基于SSA的Information-Propagating"><a href="#《SSA-Book》-6-基于SSA的Information-Propagating" class="headerlink" title="《SSA Book》- 6. 基于SSA的Information Propagating"></a>《SSA Book》- 6. 基于SSA的Information Propagating</h1><p>从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。</p>
-<p>本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常数传播而永远不会发生的分支，同时速度还很快！本章的算法不止能被运用于稀有条件常数传播，只要修改数据流传播函数，对于其他的前向数据流分析同样适用。</p>
-<h2 id="算法流程"><a href="#算法流程" class="headerlink" title="算法流程"></a>算法流程</h2><p>首先，考虑常量传递中数据流传递的方程。常量传播算法采用的格（Lattice）是一个最简单的三层格，T表示尚未确定的值，⊥表示不为常量的值，而中间的多个v则为已知常量值的常量。当两个数据流信息交汇时候，考虑下列情况：</p>
-<ol>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--6.-基于ssa的information-propagating">《SSA Book》- 6.
+基于SSA的Information Propagating</h1>
+<p>从这一节开始，将不再遵循书中的顺序。因为除开之前写过的部分，之后的章节之间相对独立。我就根据自己的兴趣，不断更新吧。</p>
+<p>本节要讲的是基于SSA的稀有条件常数传播（Sparse Data-flow
+Propagation），这是常量传播算法中的一种，也是目前最常用的一种。这种算法依赖SSA形式，它不仅能够用常量值替换常量变量，还能消除因为常数传播而永远不会发生的分支，同时速度还很快！本章的算法不止能被运用于稀有条件常数传播，只要修改数据流传播函数，对于其他的前向数据流分析同样适用。</p>
+<h2 id="算法流程">算法流程</h2>
+<p>首先，考虑常量传递中数据流传递的方程。常量传播算法采用的格（Lattice）是一个最简单的三层格，T表示尚未确定的值，⊥表示不为常量的值，而中间的多个v则为已知常量值的常量。当两个数据流信息交汇时候，考虑下列情况：</p>
+<ol type="1">
 <li>如果两个都是常量，且常量值相等，那么交汇结果继续是这个常量；</li>
 <li>如果一个是常量，另一个是T，那么结果为常量；</li>
 <li>如果两个都是T，那么结果为T；</li>
 <li>其他情况，结果都是⊥。</li>
 </ol>
-<p>SSA形式的数据流分析依赖于变量的def-use链，这些信息被提取出来构成了SSA graph。下图即为一个例程和它的SSA graph。SSA图的节点对应于程序的操作，边连接了变量的定义和它的所有use。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-24-22-35-24.png" srcset="/img/loading.gif" lazyload alt="示例程序及其SSA graph"></p>
+<p>SSA形式的数据流分析依赖于变量的def-use链，这些信息被提取出来构成了SSA
+graph。下图即为一个例程和它的SSA
+graph。SSA图的节点对应于程序的操作，边连接了变量的定义和它的所有use。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-24-22-35-24.png" srcset="/img/loading.gif" lazyload
+alt="示例程序及其SSA graph" />
+<figcaption aria-hidden="true">示例程序及其SSA graph</figcaption>
+</figure>
 <p>接着就是算法介绍。该算法虽然也不算上很复杂，但是涉及对两个列表的数据更新。首先给出算法全貌：</p>
-<p><strong>Step 1.</strong> 首先将CFG的所有边设置为executable=0，列表CFGWorkList初始化为CFG start节点的出边，而    列表SSAWorkList初始化为空。</p>
-<p><strong>Step 2.</strong> 任选两个列表其中一个，从顶端各自拿出一个元素。</p>
+<p><strong>Step 1.</strong>
+首先将CFG的所有边设置为executable=0，列表CFGWorkList初始化为CFG
+start节点的出边，而 列表SSAWorkList初始化为空。</p>
+<p><strong>Step 2.</strong>
+任选两个列表其中一个，从顶端各自拿出一个元素。</p>
 <p><strong>Step 3.</strong> 如果拿出的元素是一个CFG中的边，那么：</p>
-<ol>
+<ol type="1">
 <li>设置executable=1；</li>
 <li>对于这个边目标基本块中的Φ函数，对它调用Visit过程；</li>
 <li>如果目标基本块是第一次被访问，那么对于它的所有操作调用Visit过程；</li>
 <li>如果目标节点只有一个executable=0的输出边，那么将该边附加到CFGWorkList。</li>
 </ol>
 <p><strong>Step 4.</strong> 如果该元素是一个SSA图中的边，那么：</p>
-<ol>
+<ol type="1">
 <li>如果目标是一个Φ操作，那么对它调用Visit过程；就在这个Φ函数上合并这个操作数的数据流信息；</li>
 <li>对于其他操作，检查CFG中这些操作所在节点的传入边缘的是否executable；如果存在可执行的边缘，那么对它调用Visit过程。</li>
 </ol>
-<p><strong>Step 5.</strong> 重复执行上面的Step 2-4，直到两个列表均为空。</p>
+<p><strong>Step 5.</strong> 重复执行上面的Step
+2-4，直到两个列表均为空。</p>
 <p>上面的过程中提到的Visit过程如下：</p>
-<ol>
-<li>根据操作的类型传播数据流信息：<ol>
+<ol type="1">
+<li>根据操作的类型传播数据流信息：
+<ol type="1">
 <li>Φ函数：如果Φ函数的某个操作数对应的控制边是executable的，那么就在这个Φ函数上合并这个操作数的数据流信息；</li>
 <li>条件分支：利用数据流分析每个操作数，并判断该条件分支中分析之后无法被执行的边，并把这个边添加到CFGWorkList中；</li>
 <li>普通操作：利用基本的数据流方法传递信息；</li>
-</ol>
-</li>
+</ol></li>
 <li>在上面更新数据流的过程中，当一个操作的数据流信息发生变化时，将该操作在SSA图中所有出边，都将被附加到SSAWorkList中。</li>
 </ol>
 <!-- ![带有Φ操作和分支常量传递的例子](https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-6-2022-04-25-21-34-15.png) -->
 <p>算法的原理其实很好被理解，在CFG中进行正常的数据流分析，每次更新数据流时借助SSA图边的帮助，即利用def-use边进行数据流分析。每次更新数据流信息，可能更新节点的出边节点的数据流也会受到影响，因此把这些边添加到待处理列表中。直到列表清空，代表没有数据流信息更新了，数据流分析结束。</p>
 <blockquote>
-<p>如果哪天心情好再补个例子吧(<em>^_^</em>)，原文中例子挺清楚的，但是要画图展示出来又挺麻烦的。</p>
+<p>如果哪天心情好再补个例子吧(*^_^*)，原文中例子挺清楚的，但是要画图展示出来又挺麻烦的。</p>
 </blockquote>
-<h2 id="算法特性与限制"><a href="#算法特性与限制" class="headerlink" title="算法特性与限制"></a>算法特性与限制</h2><h3 id="算法复杂度分析"><a href="#算法复杂度分析" class="headerlink" title="算法复杂度分析"></a>算法复杂度分析</h3><p>首先对算法的复杂度进行分析，首先SSA图的每一条边至少要处理一次，且被重复更新的最大次数取决于lattice格的高度h。此外CFG中的每一条边最多被处理一次。因此算法的复杂度为Edge(SSA)*h+Edge(CFG)。</p>
+<h2 id="算法特性与限制">算法特性与限制</h2>
+<h3 id="算法复杂度分析">算法复杂度分析</h3>
+<p>首先对算法的复杂度进行分析，首先SSA图的每一条边至少要处理一次，且被重复更新的最大次数取决于lattice格的高度h。此外CFG中的每一条边最多被处理一次。因此算法的复杂度为Edge(SSA)*h+Edge(CFG)。</p>
 <p>在研究中发现，SSA图大小的规模通常是随程序大小线性扩大的。在实践中，基于SSA的传播引擎优于传统方法。这是由于能沿着SSA的def-use链直接从变量的定义传播到它的使用，而不用为每个基本块的每个语句都保存数据流信息，只需要为每个变量的定义记录一份信息。</p>
-<h3 id="限制"><a href="#限制" class="headerlink" title="限制"></a>限制</h3><p>因为信息只能在数据的定义和使用之间传播，这限制了一些数据流问题的解决。首先，该算法缺乏“某个点上，这个变量有没有live或者可不可用”的信息。因为基于SSA的分析不是数据流流动的，而是一步到位的从def到了use，这样无法判断在某一个程序点上的数据流信息。</p>
+<h3 id="限制">限制</h3>
+<p>因为信息只能在数据的定义和使用之间传播，这限制了一些数据流问题的解决。首先，该算法缺乏“某个点上，这个变量有没有live或者可不可用”的信息。因为基于SSA的分析不是数据流流动的，而是一步到位的从def到了use，这样无法判断在某一个程序点上的数据流信息。</p>
 <p>此外，使用SSA图的数据流分析只能解决正向传播数据流分析问题。由于SSA图的结构，无法像CFG那样简单地反转图中的边进行反向传递。此外，对于正向控制流，φ函数被放置在正向程序的连接点上，而无法捕获反向控制流图中的连接点信息。然而，有基于类似于SSA形式的算法可以处理反向数据流分析，在其他章节会对这个方法进行描述。</p>
 
               

@@ -16,28 +16,19 @@
   <meta name="author" content="Yuge Chen">
   <meta name="keywords" content="">
   
-    <meta name="description" content="《SSA Book》- 3. SSA的基本构造算法上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置。其整体流程如">
+    <meta name="description" content="《SSA Book》- 3. SSA的基本构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置">
 <meta property="og:type" content="article">
 <meta property="og:title" content="《SSA Book》- 3. SSA的基本构造算法">
 <meta property="og:url" content="http://www.gqrelic.com/2022/04/10/ssa-book-3/index.html">
 <meta property="og:site_name" content="GQRelic的Blog">
-<meta property="og:description" content="《SSA Book》- 3. SSA的基本构造算法上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置。其整体流程如">
+<meta property="og:description" content="《SSA Book》- 3. SSA的基本构造算法 上班了，更新速度明显减慢 &#x2F;(ㄒoㄒ)&#x2F;~~，争取每周能有2次更新。 原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。 最小SSA构造流程总览 构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-15-45-31.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-16-31-58.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-30-26.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-53-46.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-22-06-40.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-39-50.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-41-26.png">
-<meta property="og:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-21-15-20.png">
 <meta property="article:published_time" content="2022-04-10T06:23:47.000Z">
 <meta property="article:modified_time" content="2022-04-24T05:11:25.729Z">
 <meta property="article:author" content="Yuge Chen">
 <meta property="article:tag" content="编译原理">
 <meta property="article:tag" content="SSA">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-15-45-31.png">
   
   
   <title>《SSA Book》- 3. SSA的基本构造算法 - GQRelic的Blog</title>
@@ -208,7 +199,7 @@
       <span class="post-meta mr-2">
         <i class="iconfont icon-chart"></i>
         
-          3.5k 字
+          3.6k 字
         
       </span>
     
@@ -260,56 +251,114 @@
             
             <div class="markdown-body">
               
-              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="《SSA-Book》-3-SSA的基本构造算法"><a href="#《SSA-Book》-3-SSA的基本构造算法" class="headerlink" title="《SSA Book》- 3. SSA的基本构造算法"></a>《SSA Book》- 3. SSA的基本构造算法</h1><p>上班了，更新速度明显减慢 /(ㄒoㄒ)/~~，争取每周能有2次更新。</p>
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--3.-ssa的基本构造算法">《SSA Book》- 3.
+SSA的基本构造算法</h1>
+<p>上班了，更新速度明显减慢 /(ㄒoㄒ)/~~，争取每周能有2次更新。</p>
 <p>原书中第三章包含了构造、析构、转换等多个算法，内容较长。因此将本章内容分为两节，本节先介绍利用支配树构造最小SSA的方法。</p>
-<h2 id="最小SSA构造流程总览"><a href="#最小SSA构造流程总览" class="headerlink" title="最小SSA构造流程总览"></a>最小SSA构造流程总览</h2><p>构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置。其整体流程如下：</p>
-<ol>
+<h2 id="最小ssa构造流程总览">最小SSA构造流程总览</h2>
+<p>构造SSA的过程可以分为两步：放置Φ函数，变量重命名。针对Φ函数放置过程，本书采用构造支配树的方式，选取放置Φ函数的位置。其整体流程如下：</p>
+<ol type="1">
 <li>构造支配树</li>
 <li>计算变量的支配边界</li>
 <li>在变量的支配边界添加Φ函数</li>
 </ol>
-<h2 id="支配树（Dominator-Tree）与支配边界（Dominance-Frontier）"><a href="#支配树（Dominator-Tree）与支配边界（Dominance-Frontier）" class="headerlink" title="支配树（Dominator Tree）与支配边界（Dominance Frontier）"></a>支配树（Dominator Tree）与支配边界（Dominance Frontier）</h2><p>首先我们考虑最粗暴的方式，即在所有具有多个前驱的基本块开头添加Φ函数，对变量进行聚合。这样子虽然的确满足SSA的定义，但是会插入很多不必要的Φ函数。</p>
+<h2
+id="支配树dominator-tree与支配边界dominance-frontier">支配树（Dominator
+Tree）与支配边界（Dominance Frontier）</h2>
+<p>首先我们考虑最粗暴的方式，即在所有具有多个前驱的基本块开头添加Φ函数，对变量进行聚合。这样子虽然的确满足SSA的定义，但是会插入很多不必要的Φ函数。</p>
 <p>假设一个程序的控制流图如下图所示，对于变量x，存在两个定义分别在基本块A和E中。其中，基本块D就具有多个前驱，按照最粗暴的算法，需要在这里放置一个Φ函数用来聚合前驱中变量x的值。很显然，此处的Φ函数是不必要的，因为基本块D处的x变量值是确定的。相对的，在基本块F添加Φ函数就是必要的了，因为变量x的值在此处是不确定的。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-15-45-31.png" srcset="/img/loading.gif" lazyload alt="Fig 1. 在不同基本块添加Φ函数的必要性"></p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-15-45-31.png" srcset="/img/loading.gif" lazyload
+alt="Fig 1. 在不同基本块添加Φ函数的必要性" />
+<figcaption aria-hidden="true">Fig 1.
+在不同基本块添加Φ函数的必要性</figcaption>
+</figure>
 <p>那么，在什么样的基本块添加Φ函数是必要的呢？这就需要支配树和支配边缘的概念了。关于支配的概念在龙书中提及：</p>
 <blockquote>
 <ul>
-<li>支配（dominate）：如果所有从流图的入口结点entry到结点n的路径都经过结点d，则称d支配n，记为d dom n；</li>
-<li>严格支配（strictly dominate）：如果d dom n且d != n，那么d严格支配n，记为d sdom n；</li>
-<li>直接支配（immediate dominate）：如果d dom n且n的其他支配者都支配d，那么d直接支配n，记作d idom n。</li>
+<li>支配（dominate）：如果所有从流图的入口结点entry到结点n的路径都经过结点d，则称d支配n，记为d
+dom n；</li>
+<li>严格支配（strictly dominate）：如果d dom n且d !=
+n，那么d严格支配n，记为d sdom n；</li>
+<li>直接支配（immediate dominate）：如果d dom
+n且n的其他支配者都支配d，那么d直接支配n，记作d idom n。</li>
 </ul>
 </blockquote>
-<p>直观的理解，当控制流图中存在d dom n时，只要程序执行到基本块n，那么说明基本块d一定被执行过（反之不成立）。其中，直接支配和后续研究关系最大。在上图中存在的直接支配关系为：</p>
+<p>直观的理解，当控制流图中存在d dom
+n时，只要程序执行到基本块n，那么说明基本块d一定被执行过（反之不成立）。其中，直接支配和后续研究关系最大。在上图中存在的直接支配关系为：</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs C++">entry idom A; <br>A idom B;<br>A idom C;<br>A idom D;<br>A idom F;<br>C idom E;<br></code></pre></td></tr></table></figure>
-<p>将所有的直接支配关系绘制成树的形式，即得到了支配树（Dominator Tree）。上面例子的支配树如下图所示：</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-16-31-58.png" srcset="/img/loading.gif" lazyload alt="Fig 2. 对应支配树"></p>
-<p>在支配树中，我们仍然无法得到能决定“在F放置Φ函数是必要的，在D放置Φ函数是冗余”的原因，我们需要进一步计算支配边界（Dominance Frontier，DF）。支配边界的定义如下所示：</p>
+<p>将所有的直接支配关系绘制成树的形式，即得到了支配树（Dominator
+Tree）。上面例子的支配树如下图所示：</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-10-16-31-58.png" srcset="/img/loading.gif" lazyload
+alt="Fig 2. 对应支配树" />
+<figcaption aria-hidden="true">Fig 2. 对应支配树</figcaption>
+</figure>
+<p>在支配树中，我们仍然无法得到能决定“在F放置Φ函数是必要的，在D放置Φ函数是冗余”的原因，我们需要进一步计算支配边界（Dominance
+Frontier，DF）。支配边界的定义如下所示：</p>
 <blockquote>
 <p>基本块x的支配边界DF(x)是满足下列条件的所有w的集合：x支配w的一个前驱，但是不严格支配w。</p>
 </blockquote>
 <p>以图1中的程序为例求解DF(C)，首先排除所有C严格支配的基本块（E）。剩下的基本块中，C支配D的前驱（C）和F的前驱（E），因此DF(C)={D,F}。类似的，对于与变量x相关的两个基本块A和E，他们的支配边界为DF(A)={Ø}，DF(E)={F}。</p>
 <p>支配边界是支配节点和非支配节点的分界线。每一个基本块都有其支配的节点的集合。如果一个定义了变量的基本块的所有支配的基本块中，没有别的对这个变量的定义，那么这些被支配基本块中该变量的值是确定的。一旦到了支配边界，这个变量具体的值就要考虑这个支配边界的其他的前驱基本块了。因此，变量的支配边界均为Φ函数的候选点。</p>
 <p>在之前的例子中，存在x定义的基本块集合{A,E}的支配边界集合为{F}，因此要在基本块F的开始处添加φ函数。当添加了Φ函数后，基本块F中也存在x的定义了，因此需要对{A,E,F}重复进行支配边界分析。由于DF(F)={}，因此φ函数添加完毕。</p>
-<h2 id="添加Φ节点的具体算法实现"><a href="#添加Φ节点的具体算法实现" class="headerlink" title="添加Φ节点的具体算法实现"></a>添加Φ节点的具体算法实现</h2><p>针对上一节给出的例子，本节将会给出构造SSA过程各部分的算法实现。</p>
-<h3 id="支配树与支配边界构造算法"><a href="#支配树与支配边界构造算法" class="headerlink" title="支配树与支配边界构造算法"></a>支配树与支配边界构造算法</h3><p>在SSA book中没有对构造支配树的方法进行介绍，经典支配树构造的算法包括SLT和semi-NCA算法，可以参考文章：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/365912693。">https://zhuanlan.zhihu.com/p/365912693。</a></p>
+<h2 id="添加φ节点的具体算法实现">添加Φ节点的具体算法实现</h2>
+<p>针对上一节给出的例子，本节将会给出构造SSA过程各部分的算法实现。</p>
+<h3 id="支配树与支配边界构造算法">支配树与支配边界构造算法</h3>
+<p>在SSA
+book中没有对构造支配树的方法进行介绍，经典支配树构造的算法包括SLT和semi-NCA算法，可以参考文章：https://zhuanlan.zhihu.com/p/365912693。</p>
 <p>当得到基本块之间的支配关系后，即可通过下面的算法构造每一个基本块的支配边界。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-30-26.png" srcset="/img/loading.gif" lazyload alt="Alg 1. 计算控制流图的支配边界"></p>
-<p>以下图(a)中的数据流图为例，我们使用上面的算法进行分析。所有边中，非严格支配的边的集合只有D→E和F→G。图(b)中对控制流图进行重整，并标注出非严格支配边，这张图被称作DJ-graph（Dominance edges &amp; Join edges），非严格支配的边被称作Join edge（J-edge）。接着，对于这些J-edge使用算法。节点E被先后添加至DF(D)与DF(C)中，而节点G被添加至DF(F)、DF(E)与DF(B)中。图(c)中的边即为节点和该节点的支配边界间的连线。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-53-46.png" srcset="/img/loading.gif" lazyload alt="Fig 3. 示例控制流图和其对应的DJ-grpah，DF-graph以及DF&lt;sup&gt;+&lt;/sup&gt;-graph"></p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-30-26.png" srcset="/img/loading.gif" lazyload
+alt="Alg 1. 计算控制流图的支配边界" />
+<figcaption aria-hidden="true">Alg 1.
+计算控制流图的支配边界</figcaption>
+</figure>
+<p>以下图(a)中的数据流图为例，我们使用上面的算法进行分析。所有边中，非严格支配的边的集合只有D→E和F→G。图(b)中对控制流图进行重整，并标注出非严格支配边，这张图被称作DJ-graph（Dominance
+edges &amp; Join edges），非严格支配的边被称作Join
+edge（J-edge）。接着，对于这些J-edge使用算法。节点E被先后添加至DF(D)与DF(C)中，而节点G被添加至DF(F)、DF(E)与DF(B)中。图(c)中的边即为节点和该节点的支配边界间的连线。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-21-53-46.png" srcset="/img/loading.gif" lazyload
+alt="Fig 3. 示例控制流图和其对应的DJ-grpah，DF-graph以及DF+-graph" />
+<figcaption aria-hidden="true">Fig 3.
+示例控制流图和其对应的DJ-grpah，DF-graph以及DF<sup>+</sup>-graph</figcaption>
+</figure>
 <p>此外，图(d)中展示了DF-graph图上的扩展。针对DF-graph中的连续边如C→E和E→G，将会添加边C→G到DF<sup>+</sup>-graph图中。之前提到过Φ节点的添加是迭代式的，添加的Φ函数本身也是一个def。假设在基本块C存在对变量x的定义，当向E添加了Φ函数之后，由于E有了关于变量x的定义，因此需要向基本块G继续添加Φ函数。提前计算好DF<sup>+</sup>-graph能避免计算支配边界过程中的冗余计算。这部分算法将会在第四章中“更复杂巧妙的构造算法”进行介绍。</p>
-<h3 id="Φ函数添加算法"><a href="#Φ函数添加算法" class="headerlink" title="Φ函数添加算法"></a>Φ函数添加算法</h3><p>基于前文的分析，添加Φ函数的方法显而易见了。下图展示了插入Φ节点的标准算法。对于一个变量，算法将所有的定义所在基本块添加至集合W中。然后从W中取出基本块X，向X的支配边界添加Φ函数，并把添加了Φ函数的基本块添加至集合W中。如此循环直到W集合为空。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-22-06-40.png" srcset="/img/loading.gif" lazyload alt="Alg 2. 向控制流图中添加Φ函数"></p>
-<h2 id="变量重命名"><a href="#变量重命名" class="headerlink" title="变量重命名"></a>变量重命名</h2><p>添加了Φ函数之后，需要对变量进行重命名。变量重命名算法如下图所示。对于任意一个变量v，算法使用v.reachingDef来记录当前替换变量的值。算法前序遍历支配树中的基本块，并依次遍历基本块中的每一条指令。进行操作：</p>
-<ol>
+<h3 id="φ函数添加算法">Φ函数添加算法</h3>
+<p>基于前文的分析，添加Φ函数的方法显而易见了。下图展示了插入Φ节点的标准算法。对于一个变量，算法将所有的定义所在基本块添加至集合W中。然后从W中取出基本块X，向X的支配边界添加Φ函数，并把添加了Φ函数的基本块添加至集合W中。如此循环直到W集合为空。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-12-22-06-40.png" srcset="/img/loading.gif" lazyload
+alt="Alg 2. 向控制流图中添加Φ函数" />
+<figcaption aria-hidden="true">Alg 2. 向控制流图中添加Φ函数</figcaption>
+</figure>
+<h2 id="变量重命名">变量重命名</h2>
+<p>添加了Φ函数之后，需要对变量进行重命名。变量重命名算法如下图所示。对于任意一个变量v，算法使用v.reachingDef来记录当前替换变量的值。算法前序遍历支配树中的基本块，并依次遍历基本块中的每一条指令。进行操作：</p>
+<ol type="1">
 <li>如果该语句非Φ函数，且使用了变量v，那么则更新v.reachingDef的值，并用更新后v.reachingDef的值替代此处变量v；</li>
-<li>如果被该语句定义了变量v，那么同样先更新v.reachingDef的值，并创建一个新变量v’替代此处的定义，并对v和v’的reachingDef属性进行更改；</li>
+<li>如果被该语句定义了变量v，那么同样先更新v.reachingDef的值，并创建一个新变量v'替代此处的定义，并对v和v'的reachingDef属性进行更改；</li>
 <li>当遍历完所有语句，则对于所有这个基本块的后继基本块的Φ函数，如果Φ函数使用了变量v，则采用类似操作1中的方法，对Φ函数中的变量进行替代。</li>
 </ol>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-39-50.png" srcset="/img/loading.gif" lazyload alt="Alg 3. 变量重命名算法"></p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-39-50.png" srcset="/img/loading.gif" lazyload
+alt="Alg 3. 变量重命名算法" />
+<figcaption aria-hidden="true">Alg 3. 变量重命名算法</figcaption>
+</figure>
 <p>上述算法中，最重要的就是“更新v.reachingDef的值”的方法，该方法被包含在函数updateReachingDef(v,i)中，算法如下所示。这个算法搜索v的所有定义，直到找到支配i的最接近的定义（注意是支配，而不是严格支配），然后使用此定义更新v.reachingDef。这样子语句i被v.reachingDef的定义所支配，因此i中的变量v理所当然的可以被v.reachingDef所替换。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-41-26.png" srcset="/img/loading.gif" lazyload alt="Alg 4. updateReachingDef(v,i)函数实现"></p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-20-41-26.png" srcset="/img/loading.gif" lazyload
+alt="Alg 4. updateReachingDef(v,i)函数实现" />
+<figcaption aria-hidden="true">Alg 4.
+updateReachingDef(v,i)函数实现</figcaption>
+</figure>
 <p>下图以一个例子展示了对程序中x变量重命名的全过程，按步骤进行简单介绍：</p>
-<ol>
+<ol type="1">
 <li>在入口处对x.reachingDef进行初始化；</li>
 <li>语句l1满足情况2，首先更新reachingDef的值为当前语句，然后将def的结果替换为x1；</li>
 <li>遍历完基本块A的两个语句，需要看两个后继中的Φ语句。刚好都没有Φ语句，那没事了，继续遍历；</li>
@@ -319,13 +368,22 @@
 <li>情况1-3展示完毕，后续同理……</li>
 </ol>
 <p>对于reachingDef属性的具体存储，因为其包含了一些搜索和回退过程，在实现的过程中通常会分配额外的内存对过程值进行记录。记录的方法包括使用栈和槽（slot-based）的，前者更节省空间，后者更加高效。</p>
-<p><img src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-21-15-20.png" srcset="/img/loading.gif" lazyload alt="Fig 4. 变量重命名的过程实例"></p>
-<h2 id="关于基本SSA构造方法的总结"><a href="#关于基本SSA构造方法的总结" class="headerlink" title="关于基本SSA构造方法的总结"></a>关于基本SSA构造方法的总结</h2><p>使用本章最简单的构造方法得到的SSA具有下列特点：</p>
-<ol>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-3-2022-04-13-21-15-20.png" srcset="/img/loading.gif" lazyload
+alt="Fig 4. 变量重命名的过程实例" />
+<figcaption aria-hidden="true">Fig 4. 变量重命名的过程实例</figcaption>
+</figure>
+<h2 id="关于基本ssa构造方法的总结">关于基本SSA构造方法的总结</h2>
+<p>使用本章最简单的构造方法得到的SSA具有下列特点：</p>
+<ol type="1">
 <li>它是minimal SSA；</li>
 <li>它是non-pruned SSA，有些插入的Φ函数可能是dead的，需要删除；</li>
 <li>它是C-SSA，可以被直接送到SSA析构算法中进行转化；</li>
-<li>它是strict SSA，即每个use都一个def所支配。这是因为它在构造过程中采用了支配边界的概念进行Φ函数插入，而不是简单的通过join set进行判断（注：基本块集合S的join set即为在CFG中可以被S的两个或更多不同元素通过不相交路径到达的节点）。</li>
+<li>它是strict
+SSA，即每个use都一个def所支配。这是因为它在构造过程中采用了支配边界的概念进行Φ函数插入，而不是简单的通过join
+set进行判断（注：基本块集合S的join
+set即为在CFG中可以被S的两个或更多不同元素通过不相交路径到达的节点）。</li>
 </ol>
 
               
