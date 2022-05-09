@@ -4,6 +4,33 @@
   
   
   <entry>
+    <title>《SSA Book》- 12. 基于SSA的循环树和归纳变量</title>
+    <link href="/2022/05/08/ssa-book-12/"/>
+    <url>/2022/05/08/ssa-book-12/</url>
+    
+    <content type="html"><![CDATA[<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--12.-基于ssa的循环树和归纳变量">《SSA Book》- 12.基于SSA的循环树和归纳变量</h1><p>这应该是与《SSAbook》有关的倒数第二篇文章了！可喜可贺，可喜可贺！最后一篇将会是关于PartialRedundancy Elimination有关的内容。这一章先讲讲循环吧！</p><p>本章将会介绍对于可约循环的识别，循环归纳变量外提，以及一些关于非可约循环的讨论。</p><h2 id="不使用cfg的ssa表示方法">不使用CFG的SSA表示方法</h2><p>在分析程序的过程中，我们有时候需要对一些结构性的东西进行分析：分支、循环等。如果我们可以用一个SSA表示方法，高层次地表示出程序中的分支和循环，就可以很方便后续的分析。</p><p>想象对于一个CFG，有一个printer程序能以任意的顺序打印出其中的语句，构成一个串行程序。比如下面的CFG，可以得到下面的顺序程序：</p><figure><imgsrc="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-12-2022-05-08-22-17-27.png"alt="顺序控制流图" /><figcaption aria-hidden="true">顺序控制流图</figcaption></figure><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-keyword">return</span> c<br>b = ...<br>c = a + b<br>a = ...<br></code></pre></td></tr></table></figure><p>很明显，上面的程序打乱了依赖关系。但是在我们的打印方式中无所谓！因为我们最看重的就是结构。同样，我们下面稍微复杂的CFG，对于其中的循环我们可以用Φ-node进行表示：</p><figure><imgsrc="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-12-2022-05-08-22-36-34.png"alt="带有循环的控制流图" /><figcaption aria-hidden="true">带有循环的控制流图</figcaption></figure><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs C++">i = Φ_entry(<span class="hljs-number">3</span>, i+<span class="hljs-number">1</span>)<br>k = Φ_exit(P, i)<br><span class="hljs-keyword">return</span> k<br></code></pre></td></tr></table></figure><p>这样，我们就有了SSA模式中一个与循环有关的变量i的定义。我们可以注意到，本例中使用了两种φ-node：</p><ol type="1"><li><strong>loop-φ nodes</strong>：其中的i = Φ_entry(3,i+1)表示循环中的i初始值为3，每次循环迭代将会为该变量加1；</li><li><strong>close-φ nodes</strong>：其中的k = Φ_exit(P,i)捕获循环中i的最后一个值，这个最后一个值在条件P为true的时候获得（即循环结束）。注意循环中定义的名称，只能在该循环内或在close-φ节点的参数中使用。</li></ol><p>这样的表达方式能对可约循环进行描述。下面，我们将讨论一个算法，该算法将SSA表示转换为多项式函数的表示，描述这个SSA变量在整个循环中遍历的值。该算法仅限于可约的循环。</p><h2 id="归纳变量分析">归纳变量分析</h2><p>首先我们需要对循环迭代变量进行更简单的描述。对于循环变量x，如果从0开始每次递增1，那么可以表示为<spanclass="math inline">\((0,+,1)_x\)</span>，这个叫做recurrence链（rec链）。</p><p>那么，当我们有了CFG的SSA表示之后，如何对所有的循环迭代变量计算rec链呢？那么就需要Stridedetection算法。该检测算法可以通过遍历SSA表示中的use-def链进行。如果一个变量自己依赖于自己，那么就可以直接得到它的rec链。如果依赖于其他的变量，就需要迭代的进行分析过程，直到所有的rec链结果都被得到且不再变化。（在这个过程中可能会发现互相依赖的循环链条，这个超出我们的分析范围了。这些循环回路也可以在这个过程中检查出来）。</p><p>下面的例子展示了rec链条分析过程。在这个例子中，图(a)从第一个循环Φ节点开始，接着他需要遍历循环Φ节点相关的整个数据链。图(b)所示，首先考虑f→e→d的链条，到达了另一个Φ节点。因为两个Φ节点不一样，说明这是一个依赖关系的Φ节点，所以这个e暂且不分析，等待后面的分析。接着如图(c)，考虑f→c的链条，链条回到了最开始的Φ节点。这样就得到了c的rec链为<spanclass="math inline">\((3,+,e)_c\)</span>。</p><figure><imgsrc="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-12-2022-05-08-23-42-34.png"alt="使用深度优先搜索遍历use-def链来计算rec链" /><figcaptionaria-hidden="true">使用深度优先搜索遍历use-def链来计算rec链</figcaption></figure><p>假设我们用上面的方法对第二个Φ节点分析，可以得到变量d的rec链为<spanclass="math inline">\((1,+,5)_d\)</span>。那么c的rec链就可以改写为<spanclass="math inline">\((3,+,(8,+,5))_c\)</span>。对于这种情况，我们可以把它写作<spanclass="math inline">\((3,+,8,+,5)_c\)</span>。形如<spanclass="math inline">\((c_0,+,c_1,+,\dots,+,c_n)_x\)</span>的变量x，在循环索引为<spanclass="math inline">\(\vec{i}=(i_0,i_1,\dots,i_n)\)</span>下的值如下。其中<spanclass="math inline">\(C_n^p\)</span>是组合数。</p><p><span class="math display">\[(c_0,+,c_1,+,\dots,+,c_n)_x(\vec{i})=\sum_{p=0}^n c_p C_n^p\]</span></p><h2 id="迭代次数和循环结束值的计算">迭代次数和循环结束值的计算</h2><p>有了上面的公式，我们可以计算循环结束时，变量的值为多少。现在有下面的简单的二维循环：</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs C++">x = <span class="hljs-number">0</span>;<br><span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; N; ++i)&#123;<br>    <span class="hljs-keyword">for</span>(<span class="hljs-type">int</span> j = <span class="hljs-number">0</span>; j &lt; M; ++j)&#123;<br>        x = x + <span class="hljs-number">1</span>;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure><p>表示为之前的SSA格式，即为：</p><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs C++">x0 = <span class="hljs-number">0</span><br>i = Φ_entry(<span class="hljs-number">0</span>, i+<span class="hljs-number">1</span>)<br>x1 = Φ_entry(x0, x2)<br>x4 = Φ_exit(i &lt; N, x1)<br>j = Φ_entry(<span class="hljs-number">0</span>, j+<span class="hljs-number">1</span>)<br>x3 = Φ_entry(x1, x3 + <span class="hljs-number">1</span>)<br>x2 = Φ_exit(j &lt; M, x3)<br></code></pre></td></tr></table></figure><p>那么，对于这个过程的分析如下所示。首先，变量i的rec链可以直接得到为<spanclass="math inline">\((0,+,1)_i\)</span>；接着，在分析x1→x2→x3时，可以得到x3的rec链为<spanclass="math inline">\((x1,+,1)_{x3}\)</span>。接着，在对x2进行分析时，可以发现<spanclass="math inline">\((0,+,1)_j\)</span>第一个超出循环边界的最小值为M，那么在求解x2时，就可以把M带进去得到x2=x1+M。这样子x1就可以得到rec链为<spanclass="math inline">\((0,+,M)_{x1}\)</span>。类似的分析应用于x4，可以得到x4=MN，即为x的循环执行完毕后的最终值。</p>]]></content>
+    
+    
+    <categories>
+      
+      <category>编译</category>
+      
+    </categories>
+    
+    
+    <tags>
+      
+      <tag>编译原理</tag>
+      
+      <tag>SSA</tag>
+      
+    </tags>
+    
+  </entry>
+  
+  
+  
+  <entry>
     <title>《SSA Book》- 11. 基于SSA的If-conversion</title>
     <link href="/2022/05/07/ssa-book-11/"/>
     <url>/2022/05/07/ssa-book-11/</url>
