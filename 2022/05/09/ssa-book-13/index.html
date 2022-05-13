@@ -1,0 +1,863 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/logo.jpg">
+  <link rel="icon" href="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/logo.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#14113A">
+  <meta name="author" content="Yuge Chen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="《SSA Book》- 13. 基于SSA的冗余消除 这是SSA Book的最后一篇博文（应该吧hhh），其他的章节例如不同形式的SSA、SSA的重构等内容暂时不是很感兴趣。除此之外，本书提到的基于SSA的优化和分析策略，差不多都已讲完了，可喜可贺可喜可贺！接下来可能想了解了解图形学入门的东西，那些东西已经有很多人写了，可能短时间内不会更新太多内容了。 这一篇文章从创建文件到写完将近花了一">
+<meta property="og:type" content="article">
+<meta property="og:title" content="《SSA Book》- 13. 基于SSA的冗余消除">
+<meta property="og:url" content="http://www.gqrelic.com/2022/05/09/ssa-book-13/index.html">
+<meta property="og:site_name" content="GQRelic的Blog">
+<meta property="og:description" content="《SSA Book》- 13. 基于SSA的冗余消除 这是SSA Book的最后一篇博文（应该吧hhh），其他的章节例如不同形式的SSA、SSA的重构等内容暂时不是很感兴趣。除此之外，本书提到的基于SSA的优化和分析策略，差不多都已讲完了，可喜可贺可喜可贺！接下来可能想了解了解图形学入门的东西，那些东西已经有很多人写了，可能短时间内不会更新太多内容了。 这一篇文章从创建文件到写完将近花了一">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-05-09T07:52:19.000Z">
+<meta property="article:modified_time" content="2022-05-13T06:04:13.085Z">
+<meta property="article:author" content="Yuge Chen">
+<meta property="article:tag" content="SSA">
+<meta property="article:tag" content="编译原理">
+<meta name="twitter:card" content="summary_large_image">
+  
+  
+  <title>《SSA Book》- 13. 基于SSA的冗余消除 - GQRelic的Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    var CONFIG = {"hostname":"www.gqrelic.com","root":"/","version":"1.8.14","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"7NrGawpjjFpshn593tHXOpAC-gzGzoHsz","app_key":"jsa2SBVVQArpKrjMeiI3efKs","server_url":"https://7nrgawpj.lc-cn-n1-shared.com","path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.1.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GQRelic&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/blog-background.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="《SSA Book》- 13. 基于SSA的冗余消除"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-05-09 15:52" pubdate>
+          2022年5月9日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          5.9k 字
+        
+      </span>
+    
+
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">《SSA Book》- 13. 基于SSA的冗余消除</h1>
+            
+            <div class="markdown-body">
+              
+              <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><h1 id="ssa-book--13.-基于ssa的冗余消除">《SSA Book》- 13.
+基于SSA的冗余消除</h1>
+<p>这是SSA
+Book的最后一篇博文（应该吧hhh），其他的章节例如不同形式的SSA、SSA的重构等内容暂时不是很感兴趣。除此之外，本书提到的基于SSA的优化和分析策略，差不多都已讲完了，可喜可贺可喜可贺！接下来可能想了解了解图形学入门的东西，那些东西已经有很多人写了，可能短时间内不会更新太多内容了。</p>
+<p>这一篇文章从创建文件到写完将近花了一个星期（每天晚上看一看写一写），就是因为我理解SSAPRE实在是有些吃力。我看了《SSA
+Book》、SSAPRE的原版论文《A New Algorithm for Partial Redundancy
+Elimination based on SSA Form》、以及YouTube上面Jonas
+Skeppstedt的视频，才慢慢理解这个算法的过程。所以花了很久时间。</p>
+<p>冗余消除是本人认为各大编译器基本算法中相对较为复杂的一个，涉及两次数据流分析。冗余被分为Fully
+Redundancy和Partial
+Redundancy。其中完全冗余直接消除就可以了，主要复杂的就是对部分冗余的消除，即Partial
+Redundancy
+Elimination（PRE）。下图展示了两个PRE的优化例子，优化之后的表达式被执行的次数可能会减少。两者都是部分冗余的例子，所以哦需要插入新的语句以消除冗余。相反，完全冗余可以在不需要插入的情况下删除。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-09-16-35-42.png" srcset="/img/loading.gif" lazyload
+alt="PRE优化的基本例子" />
+<figcaption aria-hidden="true">PRE优化的基本例子</figcaption>
+</figure>
+<p>PRE包含了全局通用子表达式和循环不变代码移动两个优化。我们首先考虑一个表达式能对多少基本块产生影响。如下图所示，假设图中基本块都没有对a和b的修改，那么标为绿色的基本块（即被支配的基本块）中任何的a+b计算都是完全冗余的。然而，一旦跨越了支配边界，那么来自别的前驱对a和b的更改，就无法保证这些基本块中的计算是冗余的了。这些就属于部分冗余，即从部分前驱执行过来的时候这个基本块里面的表达式是冗余的。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-09-16-42-08.png" srcset="/img/loading.gif" lazyload
+alt="支配边界分割了完全冗余和部分冗余区域" />
+<figcaption
+aria-hidden="true">支配边界分割了完全冗余和部分冗余区域</figcaption>
+</figure>
+<!-- 在SSA book中这一章写的总觉得有点莫名其妙的，例子没有解释的很清楚。所以我直接从SSAPRE的原版论文中提取内容：《A New Algorithm for Partial Redundancy Elimination based on SSA Form》。 -->
+<h2 id="基于ssa的pressapre">基于SSA的PRE：SSAPRE</h2>
+<!-- 针对SSA使用的PRE为SSAPRE，利用了SSA中的use-def信息对过程进行优化。在SSAPRE分析中，如果某个表达式实例aj+bj对于实例ai+bi是冗余的，SSAPRE会构建一个冗余边，连接这两个表达式。为了更方便的表示冗余关系，我们为一个表达式所在基本块的支配边界添加φ操作。得到的图被称作factored redundancy graph（FRG）。 -->
+<p>传统的PRE是利用对整个数据流图进行分析完成的。实现PRE的最经典方法Lazy
+Code
+Motion中，算法首先计算anticipated属性，接着计算earliest表达式与later表达式，最后再根据later结果替换掉所有不需要的赋值，完成冗余分析（转自<a
+target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/384878752">Lazy Code
+Motion（PRE）优化</a>）。这样的方法同样具有传统数据流分析的问题，需要对每个基本块进行信息保存，分析速度较慢。而论文《A
+New Algorithm for Partial Redundancy Elimination based on SSA
+Form》提出了SSA的SSAPRE，利用了SSA中的use-def信息对过程进行优化。</p>
+<h3 id="φ-insertion-rename">φ-insertion &amp; Rename</h3>
+<p>首先，对于SSA形式中的一个表达式实例a+b，我们可以用一个变量h来表示这个表达式实例。每当表达式中的操作数发生更改时，就用一个新的h来表示新的表达式。这样子，表达式实例也可以用变量指代，这些变量同样可以构成SSA形式，同样可以基本块合并处添加φ函数。使用变量代替分析的表达式的新图，即为factored
+redundancy graph（FRG）。</p>
+<blockquote>
+<p>我看原论文中和《SSA
+book》中都将原来的SSA中为变量合并而创建的Phi-node写作φ函数，而这一章中的为表达式而创建的Phi-node称作Φ函数。但是我之前的文章里面都使用Φ表示了变量合并时的Phi……所以只能将错就错啦，本文中针对表达式的Phi-node我将使用φ表示。</p>
+</blockquote>
+<p>下图就是一个FRG例子，其中h是表达式变量，它对应了表达式ai+bi。与普通SSA中的变量类似，与φ函数相关的语句也通过Phi-Insertion和重命名步骤构造。在Phi-Insertion中，我们在所有表达式出现的支配边界处插入新的φ操作，如下图(a)所示。此外，算法还插入了由表达式中的操作数被更改而引起的φ函数，如下图(b)所示。其中，支配边界的φ操作被添加在基本块开头，而因为操作数更改添加的φ操作将会被添加在“修改了操作数之后到达的第一个语句实例”之前。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-09-16-59-45.png" srcset="/img/loading.gif" lazyload
+alt="FRG中插入Φ操作的例子" />
+<figcaption aria-hidden="true">FRG中插入Φ操作的例子</figcaption>
+</figure>
+<p>接着，重命名步骤和之前普通的SSA变量重命名类似。唯一的区别是变量重命名中“对变量的修改”被改变成了“对表达式h中任意操作数的修改”。一个表达式h在数据流图存在有三种情况：</p>
+<ol type="1">
+<li>real occurrence：表达式本身出现在控制流图中；</li>
+<li>φ-def：表达式是被插入的φ函数；</li>
+<li>φ-use：表达式被另外的φ函数使用。</li>
+</ol>
+<p>在之前的图(a)中，基本块1中的语句即为real
+occurrence；而基本块2中出现的h语句则包含了φ-def和φ-use的情况。</p>
+<p>对于其中的real和φ-use的情况，我们检查<strong>表达式重命名堆栈顶部中的版本中的每个操作数对应的版本</strong>与这个<strong>操作数本身重命名堆栈顶部的版本</strong>是否匹配。如果所有操作数版本匹配，则将其赋值为与表达式重命名堆栈顶部相同的版本。反之，如果不匹配，对于real情况，则为其分配一个新版本，并放到表达式重命名堆栈顶部。如果是一个φ-use，那么就为他分配一个⊥，表示不清楚这里这个表达式是啥（unavailable）。上面的表示分别对应了下图中图(a)和图(b)的情况。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-09-17-23-48.png" srcset="/img/loading.gif" lazyload
+alt="表达式重命名的例子" />
+<figcaption aria-hidden="true">表达式重命名的例子</figcaption>
+</figure>
+<p>下图展示了一个插入φ函数和重命名的例子。首先是插入过程。基本块3中添加的φ操作来源于基本块1的支配边界；而基本块8中的φ操作添加来源于该基本块中对a进行了修改，且a+b表达式马上要得到使用。此外，基本块6中φ的添加是因为8中添加的φ操作的支配边界是6。在基本块10，即使它是一个合并点，我们也不用添加φ操作了，因为在第10块之后没有a+b出现了。</p>
+<p>接着在重命名阶段。基本块1中的表达式为real情况，即直接被标记为h1，并添加至堆栈之中；而基本块3中的是被插入的φ函数，因此φ-def新命名为h2，它的操作数属于φ-use，分别为h1和⊥。同样的分析也发生在基本块8和9。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-12-14-11-25.png" srcset="/img/loading.gif" lazyload
+alt="例程在插入φ函数与重命名前后的对比" />
+<figcaption
+aria-hidden="true">例程在插入φ函数与重命名前后的对比</figcaption>
+</figure>
+<p>FRG捕获程序中a+b表达式的所有冗余。实际上，它包含用于确定优化后表达式放置的信息。严格来说，解决将部分冗余转化为完全冗余的候选插入节点，只能出现在这些分析出来的Φ-nodes上。所以在后面的分析中，算法会只在这些φ节点上考虑是否插入语句实例，并选择最优的插入，这就比普通non-SSA的PRE具有更少的候选项。</p>
+<h3 id="downsafety属性计算">Downsafety属性计算</h3>
+<p>在SSAPRE寻找一个程序点放置表达式的过程中，对于每一个程序点，需要考虑以下的特征：</p>
+<ol type="1">
+<li>Correctness：添加的表达式实例在原有的表达式计算上是avail的；</li>
+<li>Safety：如果一条从入口到末尾的路径不包含该表达式语句，在这个路径上面不能插入语句实例；</li>
+<li>Computation optimality：在插入语句后能尽可能地降低计算量；</li>
+<li>Lifetime
+optimality：在插入语句后，为了暂存数据所需要的生命周期尽可能少。</li>
+</ol>
+<!-- SSAPRE和其他PRE算法一样，分为两步。第一步找出尽可能多的关于严格部分冗余的完全冗余的插入点的最佳集合；第二步根据插入结果，删除完全冗余计算。第二步较为直观，因此我们需要考虑的就是第一步。我们假设考虑的CFG中的所有关键边（也就是之前在讨论Φ析构时提到的critical edge）都已经通过在插入空的基本块移除。 -->
+<p>首先我们考虑Safety属性，这里的downsafe又被称作fully
+anticipated。downsafe的定义为：如果一个表达式Φ所在的基本块到结尾所有的路径中都会被计算，且表达式中的每个变量，直到被计算都不会被修改，那么他就是downsafe的。除了出现在循环中的操作外，Φ操作不是downsafe的情况，只会是以下情况之一：</p>
+<ol type="1">
+<li>（dead）存在一个到exit的路径，这个路径上没有对Φ进行使用；</li>
+<li>（transitive）存在一个到exit的路径，路径上有一个φ操作使用了本φ，且那个Φ不是downsafe的。</li>
+</ol>
+<p>代码过程如下所示。首先，在第一个循环中，算法将利用上面的情况1，对downsafe属性进行初始化，该步骤将会在post
+dominate tree上进行前序遍历得到。</p>
+<p>其次，对于情况2，算法将会进行一个后向遍历，对不是downsafe的φ表达式，遍历其操作数。其中，对于φ的操作数opnd的has_real_use(opnd)属性是判断该操作数是否来源于实际被使用的表达式。如果该操作数既不是has_real_use而且是被其他的φ函数定义，那么就把那个定义它的φ函数设置为not
+downsafe的，且会对这个新的φ函数的操作数调用Reset_downsafe，进行downsafe属性的传递。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-09-21-40-40.png" srcset="/img/loading.gif" lazyload
+alt="DownSafety传递" />
+<figcaption aria-hidden="true">DownSafety传递</figcaption>
+</figure>
+<p>对于之前的例子，下面给出一个示例。左图为post dominate
+tree，其中标为红色的基本块是在基本块开头添加了语句a+b的φ函数的点，标为绿色框的基本块是在基本块中存在对a+b的实际使用。那么对这个支配树进行前向分析就可以得到初始化的downsafe值。接着进行传递，在本例子中没有传递的情况，那么最终得到的downsafe值就如图中所显示。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-12-14-18-50.png" srcset="/img/loading.gif" lazyload
+alt="示例中的downsafe分析过程" />
+<figcaption aria-hidden="true">示例中的downsafe分析过程</figcaption>
+</figure>
+<h3 id="computation-optimality标准">Computation optimality标准</h3>
+<p>首先，在考虑什么插入方式是最优的之前，我们需要首先考虑哪些地方是可以插入语句的。除了downsafe的地方，如果表达式完全available，则不downsafe的基本块仍然可以作为插入候选。在这种地方插入的语句，本身就是完全冗余的，因为它的值和之前路径上的表达式实例是一样的。所以这些仅available的表达式实例在后续步骤删除冗余时一定能够被删除，同时还能辅助消除其他冗余。我们使用can_be_avail的属性来表示哪些块是可以插入的：</p>
+<p><span class="math display">\[
+can\_be\_avail(\phi) = downsafe(\phi) \cup avail(\phi)
+\]</span></p>
+<p>上面的avail可以用传统的availability数据流分析得到，但是其实这个计算过程和downsafe重合了。所以在实际实现时，直接使用一遍数据流获得得到can_be_avail属性。</p>
+<!-- 对于一个表达式侯选位置，can_be_avail代表的是这个侯选位置是否具有该表达式的值。当该表达式φ操作存在一个⊥操作数时，则说明该位置不一定有表达式的值。例如对于之前例子中的基本块3来说，它存在直接到exit的路径，所以它并不是downsafe的。同时它存在一个操作数为⊥，那么则存在从entry到该位置的路径上没有表达式，所以它也不是avail的。 -->
+<p>如果一个φ节点，它不是can_be_avail的，那么说明存在一条从入口到出口的路径，经过这个φ节点，但不经过任何该表达式的use实例。在之前的例子中，路径2→3→4→exit就是这样的一条路径。如果在节点3上添加表达式操作，那么执行过程在这个路径上一定是增加了计算次数的。我们现在考虑的PRE算法是一个保守的方法，是不允许增加计算次数的，所以我们只能够在can_be_avail属性为true的节点上添加表达式实例。</p>
+<h3 id="lifetime-optimality标准">Lifetime optimality标准</h3>
+<p>为了实现Lifetime
+optimality标准，我们算法将会执行第二次前向传播，获得later属性。对于一个基本块Φ，如果later(Φ)=true，那么在这里添加是不必要的。如果基本块的later为false，则说明这个语句在这个基本块之后刚刚好不是can_be_avail的了。对于later属性的计算，它在can_be_avail为真的数据点将later属性初始化为真。然后，它利用下面的伪代码对later属性进行传播：</p>
+<figure class="highlight delphi"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs delphi"><span class="hljs-function"><span class="hljs-keyword">procedure</span> <span class="hljs-title">Compute_later</span></span><br><span class="hljs-function">    <span class="hljs-title">for</span> <span class="hljs-title">each</span> <span class="hljs-title">expr</span>-φ <span class="hljs-title">F</span> <span class="hljs-title">in</span> <span class="hljs-title">program</span> <span class="hljs-title">do</span></span><br><span class="hljs-function">        <span class="hljs-title">later</span><span class="hljs-params">(F)</span> = <span class="hljs-title">can_be_avail</span><span class="hljs-params">(F)</span></span><br><span class="hljs-function">    <span class="hljs-title">for</span> <span class="hljs-title">each</span> <span class="hljs-title">expr</span>-φ <span class="hljs-title">F</span> <span class="hljs-title">in</span> <span class="hljs-title">program</span> <span class="hljs-title">do</span></span><br><span class="hljs-function">        <span class="hljs-title">if</span><span class="hljs-params">(later(F)</span>) <span class="hljs-title">and</span> <span class="hljs-params">(exist an operand opnd <span class="hljs-keyword">of</span> F such that</span></span><br><span class="hljs-params"><span class="hljs-function">            opnd != ⊥ <span class="hljs-keyword">and</span> has_real_use(opnd)</span>)</span><br><span class="hljs-function">            <span class="hljs-title">Reset_later</span><span class="hljs-params">(F)</span></span><br><span class="hljs-function"><span class="hljs-title">end</span> <span class="hljs-title">procedure</span></span><br><span class="hljs-function"></span><br><span class="hljs-function"><span class="hljs-title">procedure</span> <span class="hljs-title">Reset_later</span><span class="hljs-params">(G)</span></span><br><span class="hljs-function">    <span class="hljs-title">later</span><span class="hljs-params">(G)</span> = <span class="hljs-title">false</span></span><br><span class="hljs-function">    <span class="hljs-title">for</span> <span class="hljs-title">each</span> <span class="hljs-title">expr</span>-φ <span class="hljs-title">F</span> <span class="hljs-title">with</span> <span class="hljs-title">operand</span> <span class="hljs-title">opnd</span> <span class="hljs-title">defined</span> <span class="hljs-title">by</span> <span class="hljs-title">G</span> <span class="hljs-title">do</span></span><br><span class="hljs-function">        <span class="hljs-title">if</span><span class="hljs-params">(later(F)</span>)</span><br><span class="hljs-function">            <span class="hljs-title">Reset_later</span><span class="hljs-params">(F)</span></span><br><span class="hljs-function"><span class="hljs-title">end</span> <span class="hljs-title">procedure</span></span><br></code></pre></td></tr></table></figure>
+<p>利用程序对之前的控制流图进行分析。其中基本块3、6、8中的φ操作均有实际的use，所以他们的later均被设置为0。再结合之前can_be_avail的分析结果，基本块6和8均可作为放置操作的候选节点。候选节点为will_be_avail属性为true的节点，计算式为：</p>
+<p><span class="math display">\[
+will\_be\_avail(\phi) = can\_be\_avail(\phi) \wedge \neg later(\phi)
+\]</span></p>
+<!-- 所以为什么later使用上面的传播方式就可以得到呢？假设一个φ函数的所有操作数都不是实际的使用，而是其他的φ节点，那么则说明数据流图中从这个φ的操作数所在的基本块开始，到这个φ之间，没有其他的使用了。如果在这个φ实例化表达式语句，那么 -->
+<h2 id="finalize步骤">Finalize步骤</h2>
+<p>Finalize步骤将临时插入的表达式h转化成可行的SSA形式，并消除其中的⊥。在该过程中，将会使用一个叫做<span
+class="math inline">\(ArrayRef_i\)</span>的数组完成，其中<span
+class="math inline">\(ArrayRef_i[x]\)</span>表示临时变量<span
+class="math inline">\(h_i\)</span>被指向了实际定义<span
+class="math inline">\(E_x\)</span>。该步骤将完成以下操作：</p>
+<ol type="1">
+<li>对于φ函数本身，当φ函数的will_be_avail为真时，假设这个φ函数定义了<span
+class="math inline">\(h_x\)</span>变量，那么就把<span
+class="math inline">\(ArrayRef_i[x]\)</span>赋予这个φ。反之，将不会进行任何操作（例子中的基本块3）；</li>
+<li>对于实际出现的表达式实例（例如例子中的基本块9），该过程决定是现场计算还是从临时变量获得。如果<span
+class="math inline">\(ArrayRef_i[x]=⊥\)</span>，那么则把它赋予给这个表达式实例<span
+class="math inline">\(h_x\)</span>。反之则使用<span
+class="math inline">\(ArrayRef_i[x]\)</span>中的值为当前表达式实例赋值。存储的表达式将会被标记为save，当前表达式被标记为reload，这个将会在最后的CodeMotion步骤中使用；</li>
+<li>对于φ函数的操作数，如果φ函数的will_be_avail为假，则不需要执行任何操作。否则，对于φ的操作数，如果操作数满足insert条件（例如例子中的基本块6），那么则在前驱基本块的出口插入对表达式的计算<span
+class="math inline">\(E_i\)</span>。如果will_be_avail成立但操作数不满足insert，就同样从操作数对应的<span
+class="math inline">\(ArrayRef_i[x]\)</span>获得其定义，同样要标记为reload。</li>
+</ol>
+<p>下图左展示Finalize步骤后的结果，可以看到在基本块5和7中分别添加了额外的赋值语句。</p>
+<figure>
+<img
+src="https://gqrelic-blog-data.oss-cn-shanghai.aliyuncs.com/ssa-book-13-2022-05-13-14-03-39.png" srcset="/img/loading.gif" lazyload
+alt="Finalize步骤和CodeMotion步骤后的控制流图" />
+<figcaption
+aria-hidden="true">Finalize步骤和CodeMotion步骤后的控制流图</figcaption>
+</figure>
+<h2 id="codemotion步骤">CodeMotion步骤</h2>
+<p>在Finalize步骤中将临时的表达式h放入后，剩下的唯一任务就是更新SSA程序，消除冗余以表示PRE的结果。这涉及引入真正的临时临时变量t暂存表达式h的结果，以消除冗余计算。由于插入h后已经是有效的SSA形式了，因此这项任务很简单。</p>
+<p>CodeMotion步骤将会遍历表达式h的SSA图。对于real
+occurrence的表达式，如果上一步中的save为真，它会将计算结果保存到新版本的t中。如果reload为真，它通过使用t来代替该表达式的计算。在Φ函数出现时，它将生成对应的变量t的φ函数。上图右显示了CodeMotion步骤结束时的示例程序。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%BC%96%E8%AF%91/" class="category-chain-item">编译</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/SSA/">#SSA</a>
+      
+        <a href="/tags/%E7%BC%96%E8%AF%91%E5%8E%9F%E7%90%86/">#编译原理</a>
+      
+    </div>
+  
+</div>
+
+
+              
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/05/08/ssa-book-12/" title="《SSA Book》- 12. 基于SSA的循环树和归纳变量">
+                        <span class="hidden-mobile">《SSA Book》- 12. 基于SSA的循环树和归纳变量</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#comments', function() {
+      var light = 'github-light';
+      var dark = 'github-dark';
+      var schema = document.documentElement.getAttribute('data-user-color-scheme');
+      if (schema === 'dark') {
+        schema = dark;
+      } else {
+        schema = light;
+      }
+      window.UtterancesThemeLight = light;
+      window.UtterancesThemeDark = dark;
+      var s = document.createElement('script');
+      s.setAttribute('src', 'https://utteranc.es/client.js');
+      s.setAttribute('repo', 'GQRelic/commit-utterance');
+      s.setAttribute('issue-term', 'pathname');
+      
+      s.setAttribute('label', 'utterances');
+      
+      s.setAttribute('theme', schema);
+      s.setAttribute('crossorigin', 'anonymous');
+      document.getElementById('comments').appendChild(s);
+    })
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.0/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.0/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
